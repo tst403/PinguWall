@@ -1,7 +1,7 @@
 #include <stdlib.h>
 
-#ifndef INCLUDE_SORTED_TREE
-#define INCLUDE_SORTED_TREE
+#ifndef INCLUDE_SORTEDTREE
+#define INCLUDE_SORTEDTREE
 #include "includes/sortedTree.h"
 
 int sortedTree___Add(binode *node, void *val, char(*funcCompare)(void *left, void *right) ){
@@ -133,5 +133,26 @@ binode *sortedTree_Find(sortedTree *self, void *search){
     return ptr;
 }
 
+void sortedTree___Release(binode *root){
+    if(root->left == NULL && root->right == NULL){
+        if(root->value != NULL){
+            free(root->value);
+        }
+        free(root);
+        return;
+    }
 
+    sortedTree___Release(root->left);
+    sortedTree___Release(root->right);
+
+    if(root->value != NULL){
+        free(root->value);
+    }
+    free(root);
+}
+
+void sortedTree_Release(sortedTree *self){
+    sortedTree___Release(self->root);
+    self->count = 0;
+}
 #endif

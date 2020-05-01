@@ -1,3 +1,5 @@
+#ifndef SORTEDTREE_INCLUDE_H
+#define SORTEDTREE_INCLUDE_H
 #include "binode.h"
 
 struct sortedTree
@@ -16,3 +18,7 @@ void sortedTree_Add(sortedTree *self, void *val);
 void sortedTree_Iter(binode *node, void(*iterFunc)(void *val));
 
 binode *sortedTree_Find(sortedTree *self, void *search);
+
+void sortedTree_Release(sortedTree *self);
+
+#endif
