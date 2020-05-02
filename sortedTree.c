@@ -133,26 +133,29 @@ binode *sortedTree_Find(sortedTree *self, void *search){
     return ptr;
 }
 
-void sortedTree___Release(binode *root){
+int sortedTree___Release(binode *root){
     if(root->left == NULL && root->right == NULL){
         if(root->value != NULL){
             free(root->value);
         }
         free(root);
-        return;
+        return 1;
     }
 
-    sortedTree___Release(root->left);
-    sortedTree___Release(root->right);
+    int lRes = sortedTree___Release(root->left);
+    int rRes = sortedTree___Release(root->right);
 
-    if(root->value != NULL){
+    /*if(root->value != NULL){
         free(root->value);
     }
-    free(root);
+    free(root);*/
+
+    return 1 + lRes + rRes;
 }
 
-void sortedTree_Release(sortedTree *self){
-    sortedTree___Release(self->root);
+int sortedTree_Release(sortedTree *self){
+    int res = sortedTree___Release(self->root);
     self->count = 0;
+    return res;
 }
 #endif

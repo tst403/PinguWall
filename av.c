@@ -23,7 +23,7 @@ void av_Init(av *self, char *signaturesPath){
     sortedTree_Init(self->hashTree, av_compFunc);
 }
 
-void av_LoadSignatures(av *self){
+int av_LoadSignatures(av *self){
     FILE *fp = fopen(self->signaturesPath, "r");
     char *ioBuffer = alloca(BUFFER_SIZE_BIG);
     if(ioBuffer == NULL){
@@ -32,18 +32,21 @@ void av_LoadSignatures(av *self){
     setvbuf(fp, ioBuffer, _IOFBF, BUFFER_SIZE_BIG);
 
     char line[BUFFER_SIZE_TINY];
+    int added = 0;
     while (fgets(line, BUFFER_SIZE_TINY, fp))
     {
         char *currentHash = malloc(HASH_SIZE);
         strncpy(currentHash, line, HASH_SIZE);
 
         sortedTree_Add(self->hashTree, currentHash);
+        added++;
     }
 
     self->sigLoad = 1;
+    return added;
 }
 
-void av_UnloadSignatures(av *self){
+int av_UnloadSignatures(av *self){
     sortedTree_Release(self->hashTree);
     self->sigLoad = 0;
 }

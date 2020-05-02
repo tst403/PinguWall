@@ -14,8 +14,8 @@ struct av
 
 void av_Init(av *self, char *signaturesPath);
 
-void av_LoadSignatures(av *self);
+int av_LoadSignatures(av *self);
 
-void av_UnloadSignatures(av *self);
+int av_UnloadSignatures(av *self);
 
 #endif

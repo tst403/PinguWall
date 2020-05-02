@@ -19,6 +19,6 @@ void sortedTree_Iter(binode *node, void(*iterFunc)(void *val));
 
 binode *sortedTree_Find(sortedTree *self, void *search);
 
-void sortedTree_Release(sortedTree *self);
+int sortedTree_Release(sortedTree *self);
 
 #endif

@@ -34,12 +34,16 @@ int main(){
     NewType(av, AV)
     av_Init(AV, "/home/dindibo4/av-test/sigs/SIG");
 
-    av_LoadSignatures(AV);
+    int a = av_LoadSignatures(AV);
     fprintf(stderr, "[+] %d Signatures loaded\n", AV->hashTree->count);
+    
+    fprintf(stderr, "[+] %d\n", av_UnloadSignatures(AV));
+    fprintf(stderr, "tree = %p\n", AV);
+    fprintf(stderr, "[+] %d Signatures unloaded\n", AV->hashTree->count);
 
-    char smallBuffer[BUFFER_SIZE_SMALL];
+    /*char smallBuffer[BUFFER_SIZE_SMALL];
     getcwd(smallBuffer, BUFFER_SIZE_SMALL);
-    fprintf(stderr, "[*] Searching in folder: %s\n", smallBuffer);
+    fprintf(stderr, "[*] Searching in folder: %s\n", smallBuffer);*/
 
     // TODO: child search for viruses
 
