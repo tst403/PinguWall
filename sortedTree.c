@@ -83,7 +83,12 @@ void sortedTree_Iter(binode *node, void(*iterFunc)(void *val)){
         sortedTree_Iter(node->left, iterFunc);
     }
 
-    (*iterFunc)(node->value);
+    if(node->value != NULL){
+        (*iterFunc)(node->value);
+    }
+    else{
+        return;
+    }
 
     if(node->right != NULL){
         sortedTree_Iter(node->right, iterFunc);
@@ -134,6 +139,11 @@ binode *sortedTree_Find(sortedTree *self, void *search){
 }
 
 int sortedTree___Release(binode *root){
+    // if null go back
+    if(root == NULL){
+        return 0;
+    }
+    // is leaf
     if(root->left == NULL && root->right == NULL){
         if(root->value != NULL){
             free(root->value);
@@ -142,13 +152,18 @@ int sortedTree___Release(binode *root){
         return 1;
     }
 
+    // release left, point to null
     int lRes = sortedTree___Release(root->left);
-    int rRes = sortedTree___Release(root->right);
+    root->left = NULL;
 
-    /*if(root->value != NULL){
+    // release right, point to null
+    int rRes = sortedTree___Release(root->right);
+    root->right = NULL;
+
+    if(root->value != NULL){
         free(root->value);
     }
-    free(root);*/
+    free(root);
 
     return 1 + lRes + rRes;
 }
@@ -156,6 +171,8 @@ int sortedTree___Release(binode *root){
 int sortedTree_Release(sortedTree *self){
     int res = sortedTree___Release(self->root);
     self->count = 0;
+    self->root->value = NULL;
+    // TODO: Fix deletion count
     return res;
 }
 #endif

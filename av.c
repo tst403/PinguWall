@@ -47,8 +47,13 @@ int av_LoadSignatures(av *self){
 }
 
 int av_UnloadSignatures(av *self){
-    sortedTree_Release(self->hashTree);
-    self->sigLoad = 0;
+    int res = sortedTree_Release(self->hashTree);
+
+    free(self->hashTree);
+    self->hashTree = calloc(1, sizeof(sortedTree));
+    sortedTree_Init(self->hashTree, av_compFunc);
+
+    return res;
 }
 
 // recives two md5 hashes, strings must be md5 hashes in the same format

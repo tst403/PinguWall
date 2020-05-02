@@ -37,13 +37,6 @@ int main(){
     int a = av_LoadSignatures(AV);
     fprintf(stderr, "[+] %d Signatures loaded\n", AV->hashTree->count);
     
-    fprintf(stderr, "[+] %d\n", av_UnloadSignatures(AV));
-    fprintf(stderr, "tree = %p\n", AV);
-    fprintf(stderr, "[+] %d Signatures unloaded\n", AV->hashTree->count);
-
-    /*char smallBuffer[BUFFER_SIZE_SMALL];
-    getcwd(smallBuffer, BUFFER_SIZE_SMALL);
-    fprintf(stderr, "[*] Searching in folder: %s\n", smallBuffer);*/
 
     // TODO: child search for viruses
 
