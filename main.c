@@ -1,10 +1,10 @@
-#include "includes/binode.h"
-#include "includes/sortedTree.h"
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+
+#include "includes/binode.h"
+#include "includes/sortedTree.h"
 #include "includes/av.h"
 
 #define NewType(TYPE, NAME) TYPE *NAME = malloc(sizeof(TYPE));
@@ -30,13 +30,23 @@ char sortedTree_tree_funcCompare(void *left, void *right){
     return *nLeft > *nRight ? -1 : *nRight > *nLeft ? 1 : 0;
 }
 
+void search_file(char *path);
+
 int main(){
     NewType(av, AV)
-    av_Init(AV, "/home/dindibo4/av-test/sigs/SIG");
+    av_Init(AV, "../../../av-test/sigs/SIG");
 
-    int a = av_LoadSignatures(AV);
+    av_LoadSignatures(AV);
     fprintf(stderr, "[+] %d Signatures loaded\n", AV->hashTree->count);
-    
+
+    char path[256];
+    getcwd(path, 256);
+
+    printf("Starting scan at %s ...\n", path);    
+    av_SearchViruses(AV, path);
+
+    printf("Scan complete.\nFound %d Threats!\n", AV->threatsFound);
+
 
     // TODO: child search for viruses
 

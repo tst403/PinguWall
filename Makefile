@@ -1,11 +1,12 @@
-CFLAGS = -g
-OFLAGS = -g -c
+OFLAGS = -g
+CFLAGS = -g -c -Wall
+CLIBS = -lcrypto -lssl
 CC = gcc
-PACKAGE_NAME = "tree"
+PACKAGE_NAME = "PinguAV"
 
 install:
-	@$(CC) $(OFLAGS) *.c
-	@$(CC) $(CFLAGS) *.o -o $(PACKAGE_NAME)
+	@$(CC) $(CFLAGS) $(CLIBS) *.c
+	@$(CC) $(OFLAGS) *.o $(CLIBS) -o $(PACKAGE_NAME)
 	@rm -f *.o
 	@echo "Install complete"
 

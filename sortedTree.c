@@ -101,7 +101,7 @@ binode *sortedTree___Find(binode *node, void *search, char(*funcCompare)(void *l
     binode *ptr = node;
     char cmp;
 
-    while(ptr->value != search && ptr != NULL){
+    while(ptr != NULL && ptr->value != search ){
         cmp = (*funcCompare)(ptr->value, search);
 
         // if current value is lower, search right
@@ -133,6 +133,7 @@ binode *sortedTree___Find(binode *node, void *search, char(*funcCompare)(void *l
     return ptr;
 }
 
+// Finds an instance in the tree, returns the node to the instance or NULL if not found
 binode *sortedTree_Find(sortedTree *self, void *search){
     binode *ptr = sortedTree___Find(self->root, search, self->funcCompare);
     return ptr;
