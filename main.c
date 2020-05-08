@@ -69,27 +69,63 @@ void show_help(){
     puts("\t--help: this screen");
 }
 
-void start_scan(char *path, ScanType type){
+void prompt_delete(char *path){
+    printf("Deleting the file %s might resolve the problem\nDo you wish to delete it now?\n", path);
+    char choise;
+    choise = getc(stdin);
+    getc(stdin);
+    while (choise != 'y' && choise != 'n' &&
+    choise != 'Y' &&  choise != 'N')
+    {
+        puts("Enter [y/n]");
+        choise = getc(stdin);
+        getc(stdin);
+    }
+    if(choise == 'y' || choise == 'Y'){
+        if(remove(path)){
+            puts("Malicious file removed");
+        }
+        else{
+            printf("can't remove %s\n", path);
+        }
+    }
+}
+
+void start_scan(char *path, ScanType type, int fileIndex, int argc){
     switch (type)
     {
         case SCANTYPE_DIRECTORY:
             av_SearchViruses(AV, path);
             printf("Scan complete.\nFound %d Threats!\n", AV->threatsFound);
-
             break;
         
         default:
-            // TODO: implement file
-            exit(1);
+            // if no file provided
+            if(argc -1 == fileIndex){
+                puts("No file provided");
+                exit(1);
+            }
+            else{
+                char isVirus = av_CheckFile(AV->hashTree, path);
+                if(isVirus == 1){
+                    printf("%s is malicious!\n", path);
+                    prompt_delete(path);
+                }
+                else{
+                    printf("%s is OK\n", path);
+                }
+            }
             break;
     }
 }
 
 int main(int argc, char *argv[]){
     ScanType type = SCANTYPE_DIRECTORY;
-    for(int i = 0; i<argc; i++){
+    int fileIndex = -1;
+    for(int i = 0; i<argc && fileIndex == -1; i++){
         if(strcmp(argv[i], "-f") == 0){
             type = SCANTYPE_FILE;
+            fileIndex = i;
         }
     }
 
@@ -116,7 +152,7 @@ int main(int argc, char *argv[]){
 
     init();
 
-    start_scan(path, type);
+    start_scan(path, type, fileIndex, argc);
 
     // TODO: Fork - search
 
