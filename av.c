@@ -188,7 +188,7 @@ void av_SearchViruses_searchDirectory(av *self, char *dirPath){
             strcat(malwarePath, "/");
             strcat(malwarePath, ent->d_name);
             char isVirus = av_CheckFile(self->hashTree, malwarePath);
-
+            
             if(isVirus == 1){
                 av_AddMalware(self, malwarePath);
             }
