@@ -14,6 +14,18 @@
 #define NewTypeValue(TYPE, NAME, VALUE) TYPE *NAME = malloc(sizeof(TYPE));\
 *NAME=VALUE;\
 
+#define PRINT_HEADERS(START, END, HEADERS) for(int i = SCAN; i<=EXIT;i++){\
+printf("[%d] - %s\n", i + 1, SELECTION_HEADERS[i]);\
+}
+
+#define PROMPT_HEADERS(DEST, START, END, HEADERS)int DEST;\
+PRINT_HEADERS(START, END, HEADERS)\
+do{\
+scanf("%d", &DEST);\
+DEST--;\
+}\
+while (!(DEST >= START && DEST <= END));
+
 #define HASH_SIZE 32
 
 #define BUFFER_SIZE_TINY 64
@@ -24,13 +36,24 @@
 // Globals
 
 av *AV;
+const char *SELECTION_HEADERS[] = {"Scan a file or directory", "Exit"};
+const char *SELECTION_SCAN_HEADERS[] = {"Directory (recursively)", "File", "Exit"};
+void option_scan();
+void option_exit();
+const void(*SELECTION_HANDLERS[])() = {option_scan, option_exit};
 
 // Enums
 
-enum ScanType{
-    SCANTYPE_FILE,
-    SCANTYPE_DIRECTORY,
-} typedef ScanType;
+enum SELECTION{
+    SCAN,
+    EXIT,
+} typedef SELECTION;
+
+enum SELECTION_SCAN{
+    SCAN_DIRECTORY,
+    SCAN_FILE,
+    SCAN_EXIT,
+} typedef SELECTION_SCAN;
 
 char sortedTree_tree_funcCompare(void *left, void *right){
     int *nLeft = (int *)left;
@@ -91,68 +114,46 @@ void prompt_delete(char *path){
     }
 }
 
-void start_scan(char *path, ScanType type, int fileIndex, int argc){
-    switch (type)
-    {
-        case SCANTYPE_DIRECTORY:
-            av_SearchViruses(AV, path);
-            printf("Scan complete.\nFound %d Threats!\n", AV->threatsFound);
-            break;
-        
-        default:
-            // if no file provided
-            if(argc -1 == fileIndex){
-                puts("No file provided");
-                exit(1);
+void start_scan(char *path, SELECTION_SCAN type, int fileIndex, int argc){
+    if(type == SCAN_DIRECTORY){
+        av_SearchViruses(AV, path);
+        printf("Scan complete.\nFound %d Threats!\n", AV->threatsFound);
+    }
+    else{
+        // if no file provided
+        if(argc -1 == fileIndex){
+            puts("No file provided");
+            exit(1);
+        }
+        else{
+            char isVirus = av_CheckFile(AV->hashTree, path);
+            if(isVirus == 1){
+                printf("%s is malicious!\n", path);
+                prompt_delete(path);
             }
             else{
-                char isVirus = av_CheckFile(AV->hashTree, path);
-                if(isVirus == 1){
-                    printf("%s is malicious!\n", path);
-                    prompt_delete(path);
-                }
-                else{
-                    printf("%s is OK\n", path);
-                }
+                printf("%s is OK\n", path);
             }
-            break;
+        }
     }
 }
 
+void option_scan(){
+    PROMPT_HEADERS(select, SCAN_DIRECTORY, SCAN_EXIT, SELECTION_SCAN_HEADERS)
+}
+
+void option_exit(){
+    exit(0);
+}
+
 int main(int argc, char *argv[]){
-    ScanType type = SCANTYPE_DIRECTORY;
-    int fileIndex = -1;
-    for(int i = 0; i<argc && fileIndex == -1; i++){
-        if(strcmp(argv[i], "-f") == 0){
-            type = SCANTYPE_FILE;
-            fileIndex = i;
-        }
-    }
-
-    if((argc == 1) || (argc > 1 && strcmp(argv[1], "--help") == 0) || (type == SCANTYPE_FILE && argc < 3)){
-        show_help();
-        exit(0);
-    }
-
-    char *path;
-    if(type == SCANTYPE_DIRECTORY){
-        path = argv[1];
-    }
-    else if(type == SCANTYPE_FILE){
-        path = argv[2];
-    }
-    else{
-        puts("Scan: unknown scan type");
-        exit(1);
-    }
-    if(access(path, F_OK) == -1){
-        printf("IO: cannot open: %s\n", path);
-        exit(1);
-    }
-
     init();
 
-    start_scan(path, type, fileIndex, argc);
+    PROMPT_HEADERS(select, SCAN, EXIT, SELECTION_HEADERS)
+
+    SELECTION_HANDLERS[select]();
+
+    //start_scan(path, type, fileIndex, argc);
 
     // TODO: Fork - search
 
