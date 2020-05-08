@@ -13,4 +13,5 @@ install:
 clean:
 	@rm -f *.o
 	@rm -f $(PACKAGE_NAME)
+	rm -i sigs
 	@echo "Clean complete"
