@@ -14,13 +14,14 @@
 #define NewTypeValue(TYPE, NAME, VALUE) TYPE *NAME = malloc(sizeof(TYPE));\
 *NAME=VALUE;\
 
-#define PRINT_HEADERS(START, END, HEADERS) for(int i = SCAN; i<=EXIT;i++){\
-printf("[%d] - %s\n", i + 1, SELECTION_HEADERS[i]);\
+#define PRINT_HEADERS(START, END, HEADERS) for(int i = START; i<=END;i++){\
+printf("[%d] - %s\n", i + 1, HEADERS[i]);\
 }
 
-#define PROMPT_HEADERS(DEST, START, END, HEADERS)int DEST;\
+#define PROMPT_HEADERS(DEST, START, END, HEADERS)\
 PRINT_HEADERS(START, END, HEADERS)\
 do{\
+write(1, "Selection> ", sizeof("Selection> "));\
 scanf("%d", &DEST);\
 DEST--;\
 }\
@@ -139,6 +140,7 @@ void start_scan(char *path, SELECTION_SCAN type, int fileIndex, int argc){
 }
 
 void option_scan(){
+    int select;
     PROMPT_HEADERS(select, SCAN_DIRECTORY, SCAN_EXIT, SELECTION_SCAN_HEADERS)
 }
 
@@ -149,9 +151,13 @@ void option_exit(){
 int main(int argc, char *argv[]){
     init();
 
-    PROMPT_HEADERS(select, SCAN, EXIT, SELECTION_HEADERS)
-
-    SELECTION_HANDLERS[select]();
+    int select;
+    do
+    {
+        PROMPT_HEADERS(select, SCAN, EXIT, SELECTION_HEADERS)
+        SELECTION_HANDLERS[select]();
+    }
+    while(select != EXIT);
 
     //start_scan(path, type, fileIndex, argc);
 
