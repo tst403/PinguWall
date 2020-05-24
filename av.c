@@ -8,6 +8,10 @@
 #include <string.h>
 #include <dirent.h>
 #include <openssl/md5.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <time.h>
+
 
 #define HASH_SIZE 32
 #define BUFFER_SIZE_TINY 64
@@ -157,7 +161,7 @@ int av_CheckFile(sortedTree *hashTree, char *path){
 
 // Searches recursivly in dirPath for viruses, updates self  with any threats
 // dirPath: path to directory to search for viruses
-void av_SearchViruses_searchDirectory(av *self, char *dirPath){
+static void av_SearchViruses_searchDirectory(av *self, char *dirPath){
     DIR *dp = opendir(dirPath);
     struct dirent *ent;
 
@@ -198,6 +202,111 @@ void av_SearchViruses_searchDirectory(av *self, char *dirPath){
 
 void av_SearchViruses(av *self, char *path){
     av_SearchViruses_searchDirectory(self, path);
+}
+
+
+static void removeLastCharecter(char *str, char toRemove){
+    int strLen = strlen(str);
+    char *ptr;
+
+    for(ptr = str + strLen - 1; *ptr != toRemove && ptr - str >= 0; ptr--);
+
+    if(*ptr == toRemove){
+        *ptr = '\00';
+    }
+}
+
+scanResults av_SearchViruses_S(av *self, char *filePath){
+
+    scanResults results;
+    char absoluteFilePath[128];
+    struct stat statbuf;
+
+    //memset(&results, 0, sizeof(results));
+    results.pathScanned = NULL;
+    results.filetype = FILETYPE_ERR;
+    results.threatsFound = 0;
+    realpath(filePath, absoluteFilePath); 
+    removeLastCharecter(absoluteFilePath, '/');
+
+
+    // If file don't exist exit
+    if(access(absoluteFilePath, F_OK) == -1){
+        results.success = -1;
+        return results;
+    }
+
+    // Get file type if possible 
+    if(stat(absoluteFilePath, &statbuf) != 0){
+        results.success = -1;
+        return results;
+    }
+
+    results.pathScanned = (char*)malloc(128);
+    strncpy(results.pathScanned, absoluteFilePath, 127);
+
+    // If regular file
+    if(S_ISREG(statbuf.st_mode)){
+        char isVirus = av_CheckFile(self->hashTree, absoluteFilePath);
+        
+        if(isVirus == 1){
+            av_AddMalware(self, absoluteFilePath);
+            results.threatsFound++;
+        }
+
+        results.filetype = FILETYPE_REG;
+        results.success = 1;
+    }
+    // If directory
+    else if(S_ISDIR(statbuf.st_mode)){
+        int prevViruses = self->threatsFound;
+        av_SearchViruses(self, absoluteFilePath);
+        results.threatsFound = self->threatsFound - prevViruses;
+        results.filetype = FILETYPE_DIR;
+        results.success = 1;
+    }
+    else{
+        results.success = -1;
+        return results;
+    }
+
+    return results;
+}
+
+static void av_writeToFile(av *self, FILE *fp){
+    time_t timestamp = time(NULL);
+    fprintf(fp, "%ld", timestamp);
+    fputc('\0', fp);
+
+    fprintf(fp, "%d", self->threatsFound);
+    fputc('\0', fp);
+    
+    for (int i = 0; i < self->threatsFound; i++)
+    {
+        fprintf(fp, "%s", self->maliciousFileNames[i]);
+        fputc('\0', fp);
+    }
+}
+
+void av_saveToFile(av *self){
+    static int writeNum = 0;
+    FILE *fp;
+
+    struct stat st = {0};
+
+    if (stat("progress", &st) == -1) {
+        mkdir("progress", 0700);
+    }
+
+    chdir("progress");
+    char buffer[64];
+    sprintf(buffer, "CHK_%02x", writeNum++);
+    fp = fopen(buffer, "wb+");
+    av_writeToFile(self, fp);
+    fclose(fp);
+    chdir("..");
+    
+
 }
 
 #endif
