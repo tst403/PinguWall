@@ -3,6 +3,8 @@
         "unistd.h": "c",
         "string.h": "c",
         "types.h": "c",
-        "binode.h": "c"
+        "binode.h": "c",
+        "stat.h": "c",
+        "time.h": "c"
     }
 }
