@@ -4,5 +4,6 @@
         "string.h": "c",
         "types.h": "c",
         "binode.h": "c"
-    }
+    },
+    "python.pythonPath": "/usr/bin/python"
 }
