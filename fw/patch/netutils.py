@@ -112,9 +112,12 @@ class RoutingTable:
         assert isinstance(route, str)
         self.__default = route
 
-    def find_route(self, ip):
+    def find_route(self, ip=None):
         if self.__default is None:
             raise RoutingTable.NoRouteException('No default route')
+
+        if ip is None:
+            return self.__default
 
         for route in self.__routes:
             if route.ip_range.check_ip(ip):
@@ -127,16 +130,21 @@ class NIC:
     def __init__(self, mac_address, ip_address, routing_table=None):
         assert isinstance(mac_address, str)
         assert isinstance(ip_address, str)
-        assert isinstance(routing_table, RoutingTable)
+        #assert isinstance(routing_table, RoutingTable)
 
         self.mac_address = mac_address
         self.ip_address = ip_address
         self.routing_table = routing_table
 
     def route(self, pack):
+        pack_ip = None
+
+        if pack.haslayer(IP):
+            pack_ip = pack[IP].dst
+
         if pack.haslayer(Ether):
-            destination_ip = self.routing_table.find_route()
-            destination_mac = ARPHandler.obtain_mac(destination_ip)
+            destination_ip_route = self.routing_table.find_route(pack_ip)
+            destination_mac = ARPHandler.obtain_mac(destination_ip_route)
 
             if destination_mac is not None:
                 pack[Ether].src = self.mac_address
@@ -147,8 +155,101 @@ class NIC:
 
         return False
 
+    def sniff(self):
+        return sniff(lfilter=lambda pack: pack.haslayer(Ether) and 
+        pack[Ether].dst == self.mac_address, count=1)
+
+def route_outwards(self, pack, srcmac, hopmac):
+    translated = self.translate_packet(pack, srcmac, hopmac)
+
+    # TODO: Port manager
+    # Log translation
+    port_to_use = self._gen_unused_port()
+    self.logger.insert(pack[IP].src, pack[TCP].sport, pack[TCP].dport. port_to_use)
+
+
+class TranslationLog(object):
+    def __init__(self):
+        self.log = dict()
+        self.ports_in_use = 0
+
+
+    def insert(self, src_ip, source_port, destination_port, port_in_use):
+        data = set([source_port, destination_port, port_in_use])
+
+        if not (src_ip in self.log):
+            self.log[src_ip] = set(data)
+        else:
+            self.log[src_ip].add(data)
+
+    def remove(self, ip, ports):
+        self.log[ip].remove(ports)
+
+    def get_data_by_port(self, dport):
+        for item in self.log.items():
+            if item[1][2] == dport:
+                return item[1]
+        return None
+
+    def __getitem__(self, key):
+        return self.log.get(key, None)        
+
 
 class LanNIC(NIC):
-    def __init__(self, mac_address, ip_address, routing_table=None):
+    def __init__(self, mac_address, ip_address, wanNIC=None, routing_table=None):
         super().__init__(mac_address, ip_address, routing_table)
+        self.wanNIC = wanNIC
+
+    def forward_packet(self, pack):
+        pack[IP].src = wanNic.ip_address
+        self.wanNIC.route(pack)
+
+
+class WanNIC(NIC):
+    def __init__(self, mac_address, ip_address, lanNIC=None, routing_table=None):
+        super().__init__(mac_address, ip_address, routing_table)
+        self.lanNIC = lanNIC
+
+    def forward_packet(self, pack):
+        pack[IP].src = lanNIC.ip_address
+        self.lanNIC.route(pack)
+
+
+class NAT:
+    def _get_ports_in_used(self):
+        return [ports[2] for ports in self.log.values()]
+
+    def _gen_unused_port(self):
+        if self.ports_in_use < NAT.CONNECTIONS_MAX:
+            return -1
+
+        temp_port = random.randint(NAT.PORT_MIN, NAT.PORT_MAX)
+        used_ports = self._get_ports_in_used()
+
+        while temp_port in used_ports:
+            temp_port = random.randint(NAT.PORT_MIN, NAT.PORT_MAX)
+
+        return temp_port
+
+    def __init__(self, lanNIC, wanNIC):
+        self.lanNIC = lanNIC
+        self.wanNIC = wanNIC
+        self.logger = TranslationLog()
+
+    def run(self):
+        inward_pack = self.lanNIC.sniff()
+        temp_port = self._gen_unused_port()
+
+        self.logger.insert(inward_pack[IP].src, inward_pack[TCP].sport,
+        inward_pack[TCP].dport, temp_port)
+
+        inward_pack[IP].src = self.wanNIC.ip_address
+        WanNIC.route(inward_pack)
+
+        outward_pack = self.wanNIC.sniff()
+        data = self.logger.get_data_by_port(outward_pack[TCP].dport)
+
+        outward_pack[IP].src = self.lanNIC
+        outward_pack[TCP].dport = data[0]
+        outward_pack[TCP].sport = data[1]
 
