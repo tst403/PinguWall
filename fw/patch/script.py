@@ -15,4 +15,4 @@ routeT2.add_route(net.IPRoute(net.IPPool('10.0.3.0', '255.255.255.0'), lan.ip_ad
 lan.routing_table = routeT1
 wan.routing_table = routeT2
 
-nat.run()
+#nat.run()

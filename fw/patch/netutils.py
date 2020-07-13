@@ -238,6 +238,8 @@ class NAT:
 
     def run(self):
         inward_pack = self.lanNIC.sniff()
+        print('Sniffed')
+        
         temp_port = self._gen_unused_port()
 
         self.logger.insert(inward_pack[IP].src, inward_pack[TCP].sport,
@@ -253,3 +255,21 @@ class NAT:
         outward_pack[TCP].dport = data[0]
         outward_pack[TCP].sport = data[1]
 
+
+class SYN_Table:
+    def __init__(self):
+        self.__table = dict()
+    
+    def record(self, client_endpoint, server_endpoint):
+        if client_endpoint in self.__table:
+            raise Exception()
+        else:
+            self.__table.add(server_endpoint)
+    
+    def is_tracked(self, client_endpoint):
+        return client_endpoint in self.__table or set([client_endpoint[1], client_endpoint[0]]) in self.__table
+
+    def verify_stream(self, ip_couple, server_endpoint):
+        return self.__table.get(ip_couple) == server_endpoint
+    
+    #def get_
