@@ -191,6 +191,7 @@ void av_SearchViruses_searchDirectory(av *self, char *dirPath){
             
             if(isVirus == 1){
                 av_AddMalware(self, malwarePath);
+                fprintf(stderr, "Virus found: %s\n", malwarePath);
             }
         }
     }
