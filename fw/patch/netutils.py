@@ -1,3 +1,4 @@
+import random
 from scapy.all import *
 import os
 
@@ -23,6 +24,7 @@ class ARPHandler:
         lines = [fix_line(line) for line in lines][1:]
 
         entries = [x.split() for x in lines]
+        entries.pop()
         for entry in entries:
             ARPHandler.macs[entry[0]] = entry[3]
 
@@ -138,6 +140,7 @@ class NIC:
         self.interface_name = interface_name
 
     def route(self, pack):
+        wrpcap('test.pcapng', pack)
         pack_ip = None
 
         if pack.haslayer(IP):
@@ -150,6 +153,8 @@ class NIC:
             if destination_mac is not None:
                 pack[Ether].src = self.mac_address
                 pack[Ether].dst = destination_mac
+
+                # Recalculate ip checksum
 
                 sendp(pack)
                 return True
@@ -217,6 +222,19 @@ class WanNIC(NIC):
 
 
 class NAT:
+
+    CONNECTIONS_MAX = 100
+    PORT_MIN = 1110
+    PORT_MAX = 65000
+    
+    def __init__(self, lanNIC, wanNIC):
+        ARPHandler.update_macs()
+
+        self.lanNIC = lanNIC
+        self.wanNIC = wanNIC
+        self.logger = TranslationLog()
+        self.ports_in_use = 0
+
     def _get_ports_in_used(self):
         return [ports[2] for ports in self.log.values()]
 
@@ -232,14 +250,11 @@ class NAT:
 
         return temp_port
 
-    def __init__(self, lanNIC, wanNIC):
-        self.lanNIC = lanNIC
-        self.wanNIC = wanNIC
-        self.logger = TranslationLog()
 
     def run(self):
         inward_pack = self.lanNIC.sniff()
         print('Sniffed')
+        inward_pack = inward_pack[0]
         
         temp_port = self._gen_unused_port()
 
@@ -247,7 +262,9 @@ class NAT:
         inward_pack[TCP].dport, temp_port)
 
         inward_pack[IP].src = self.wanNIC.ip_address
-        WanNIC.route(inward_pack)
+        print('==============================')
+        inward_pack.show()
+        self.wanNIC.route(inward_pack)
 
         outward_pack = self.wanNIC.sniff()
         data = self.logger.get_data_by_port(outward_pack[TCP].dport)
