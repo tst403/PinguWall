@@ -127,7 +127,7 @@ class RoutingTable:
 
 
 class NIC:
-    def __init__(self, mac_address, ip_address, routing_table=None):
+    def __init__(self, mac_address, ip_address, interface_name, routing_table=None):
         assert isinstance(mac_address, str)
         assert isinstance(ip_address, str)
         #assert isinstance(routing_table, RoutingTable)
@@ -135,6 +135,7 @@ class NIC:
         self.mac_address = mac_address
         self.ip_address = ip_address
         self.routing_table = routing_table
+        self.interface_name = interface_name
 
     def route(self, pack):
         pack_ip = None
@@ -157,7 +158,7 @@ class NIC:
 
     def sniff(self):
         return sniff(lfilter=lambda pack: pack.haslayer(Ether) and 
-        pack[Ether].dst == self.mac_address, count=1)
+        pack[Ether].dst == self.mac_address, count=1, iface=self.interface_name)
 
 def route_outwards(self, pack, srcmac, hopmac):
     translated = self.translate_packet(pack, srcmac, hopmac)
@@ -196,8 +197,8 @@ class TranslationLog(object):
 
 
 class LanNIC(NIC):
-    def __init__(self, mac_address, ip_address, wanNIC=None, routing_table=None):
-        super().__init__(mac_address, ip_address, routing_table)
+    def __init__(self, mac_address, ip_address, iface, wanNIC=None, routing_table=None):
+        super().__init__(mac_address, ip_address, iface, routing_table=routing_table)
         self.wanNIC = wanNIC
 
     def forward_packet(self, pack):
@@ -206,8 +207,8 @@ class LanNIC(NIC):
 
 
 class WanNIC(NIC):
-    def __init__(self, mac_address, ip_address, lanNIC=None, routing_table=None):
-        super().__init__(mac_address, ip_address, routing_table)
+    def __init__(self, mac_address, ip_address, iface, lanNIC=None, routing_table=None):
+        super().__init__(mac_address, ip_address, iface, routing_table=routing_table)
         self.lanNIC = lanNIC
 
     def forward_packet(self, pack):
