@@ -34,7 +34,7 @@ void search_file(char *path);
 
 int main(){
     NewType(av, AV)
-    av_Init(AV, "../../../av-test/sigs/SIG");
+    av_Init(AV, "./sigs");
 
     av_LoadSignatures(AV);
     fprintf(stderr, "[+] %d Signatures loaded\n", AV->hashTree->count);
