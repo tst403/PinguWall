@@ -13,8 +13,21 @@ def elevate():
     if uid != 0:
         os.execvp('sudo', ['sudo', exe, *cmd])
 
-lan = net.LanNIC('08:00:27:1c:fa:e0', '192.168.73.3', 'enp0s3')
-wan = net.WanNIC('08:00:27:ba:71:27', '10.0.3.15', 'enp0s8', lanNIC=lan)
+getIpByIname = lambda iname : os.popen('ifconfig ' + iname + 'enp0s3 | grep inet | awk \'{$1=$1;print}\' | head -n1 | cut -d \' \' -f2').read()
+getMacByIname = lambda iname : os.popen('ifconfig ' + iname + ' | grep -i ether | awk \'{$1=$1;print}\' | cut -d \' \' -f2').read()
+    
+
+def buildLanNic(name):
+    return net.LanNIC(getMacByIname(name), getIpByIname(name), name)
+
+
+def buildWanNic(name):
+    return net.WanNIC(getMacByIname(name), getIpByIname(name), name)
+
+
+lan = buildLanNic('enp0s3')
+wan = buildLanNic('enp0s8')
+wan.lanNIC = lan
 lan.wanNIC = wan
 
 nat = net.NAT(lan, wan)
