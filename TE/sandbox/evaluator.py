@@ -31,6 +31,7 @@ big  = max(len(arr1), len(arr2))
 base = small / unit
 
 def chunks(lst, n):
+    n=int(n)
     for i in range(0, len(lst), n):
         yield np.array(lst[i:i + n])
 
@@ -53,8 +54,8 @@ for arr in arr1_s:
     for arrComp in arr2_s:
         # Get MAX
         shiftMax = 0
-        for x in range(base):
-            for y in range(base):
+        for x in range(int(base)):
+            for y in range(int(base)):
                 arrShift = np.roll(arr, x)
                 arrCompShift = np.roll(arrComp, y)
 
