@@ -1,6 +1,7 @@
 import random
 from scapy.all import *
 import os
+import mocking
 
 class ARPHandler:
     __ARP_TABLE_PATH = '/proc/net/arp'
@@ -139,25 +140,41 @@ class NIC:
         self.routing_table = routing_table
         self.interface_name = interface_name
 
-    def route(self, pack):
-        wrpcap('test.pcapng', pack)
+    def translate_pack_port_out(self, pack, port):
+        pack[TCP].sport = port
+        del pack[TCP].chksum
+        #del pack[TCP].chksum
+        return pack
+
+    def route(self, pack, toPort=''):
         pack_ip = None
 
         if pack.haslayer(IP):
             pack_ip = pack[IP].dst
+            del pack[IP].chksum
 
-        if pack.haslayer(Ether):
-            destination_ip_route = self.routing_table.find_route(pack_ip)
-            destination_mac = ARPHandler.obtain_mac(destination_ip_route)
+        if not pack.haslayer(Ether):
+            pack = Ether() / pack
 
-            if destination_mac is not None:
-                pack[Ether].src = self.mac_address
-                pack[Ether].dst = destination_mac
 
-                # Recalculate ip checksum
+        destination_ip_route = self.routing_table.find_route(pack_ip)
+        destination_mac = ARPHandler.obtain_mac(destination_ip_route)
+        print('TEST --> ' + destination_mac)
 
-                sendp(pack)
-                return True
+        # Change transportation layer
+        # TODO: Support UDP
+
+        if pack.haslayer(TCP) and toPort != '':
+            self.translate_pack_port_out(pack, toPort)
+
+        if destination_mac is not None:
+            pack[Ether].src = self.mac_address
+            pack[Ether].dst = destination_mac
+
+            #del pack[TCP].options
+            pack.show()
+            lst = srp1(pack)
+            return lst
 
         return False
 
@@ -221,6 +238,60 @@ class WanNIC(NIC):
         self.lanNIC.route(pack)
 
 
+class PortTranslator:
+    def __init__(self, minPort = 1100, maxPort=65000):
+        self.minPort = minPort
+        self.maxPort = maxPort
+        self.__portsInUse = 0
+        self.portMapIn = dict()
+        self.portMapOut = dict()
+        self.__NUM_OF_PORTS = 1 + maxPort - minPort
+
+    def genUnusedPort(self):
+        if self.__portsInUse > self.__NUM_OF_PORTS:
+            return -1
+        else:
+            # Generate unused port
+            tempPort = random.randint(self.minPort, self.maxPort)
+
+            while tempPort in self.portMapOut:
+                tempPort = random.randint(self.minPort, self.maxPort)
+                
+            return tempPort
+
+
+    def assignNewPort(self, ipAddr):
+            assignedPort = self.genUnusedPort()
+            if assignedPort == -1:
+                return
+
+            # Add to Ip-Ports list
+            if not ipAddr in self.portMapIn:
+                self.portMapIn[ipAddr] = [assignedPort]
+            else:
+                self.portMapIn[ipAddr].append(assignedPort)
+            
+            self.portMapOut[assignedPort] = ipAddr
+            self.__portsInUse += 1
+            return assignedPort
+
+    def releasePort(self, port):
+        if self.__portsInUse > 0:
+            ownerIp = self.portMapOut[port]
+            del self.portMapOut[port]
+
+            if ownerIp in self.portMapIn:
+                self.portMapIn[ownerIp].remove(port)
+
+            self.__portsInUse -= 1
+
+    def getPortsByIp(self, ipAddr):
+        return self.portMapIn.get(ipAddr)
+
+    def getIpByPort(self, port):
+        return self.portMapOut.get(port)
+
+
 class NAT:
 
     CONNECTIONS_MAX = 100
@@ -234,12 +305,13 @@ class NAT:
         self.wanNIC = wanNIC
         self.logger = TranslationLog()
         self.ports_in_use = 0
+        self.portTranslator = PortTranslator(minPort=NAT.PORT_MIN, maxPort=NAT.PORT_MAX)
 
     def _get_ports_in_used(self):
         return [ports[2] for ports in self.log.values()]
 
     def _gen_unused_port(self):
-        if self.ports_in_use < NAT.CONNECTIONS_MAX:
+        if self.ports_in_use > NAT.CONNECTIONS_MAX:
             return -1
 
         temp_port = random.randint(NAT.PORT_MIN, NAT.PORT_MAX)
@@ -250,21 +322,52 @@ class NAT:
 
         return temp_port
 
+    def run2(self):
+        def outwards():
+            #inward_pack = mocking.sniff_in()
+            inward_pack = self.lanNIC.sniff()[0]
+            print('======== Sniffed ========')
+            
+            # Check if first
+            temp_port = self.portTranslator.assignNewPort(inward_pack[IP].src) #mocking.get_port() #self._gen_unused_port()
+            print('New port ====> ' + str(temp_port))
+
+            inward_pack[IP].src = self.wanNIC.ip_address
+            lst = self.wanNIC.route(inward_pack, toPort=temp_port)
+            return lst
+
+        def inwards(pack):
+            usedPort = pack[TCP].dport
+            clientIp = self.portTranslator.getIpByPort(usedPort)
+
+            #pack[IP].src = self.lanNIC.ip_address
+            pack[IP].dst = clientIp
+            del pack[IP].chksum
+
+            print('======== <-- Inwards <-- ========')
+            pack.show()
+            lst = self.lanNIC.route(pack)
+            return lst
+
+        pack = outwards()[0]
+        inwards(pack)
+        print('======== Sucsess! ========')
+
+    # Added port manager, check dst mac of WAN-LAN server 
 
     def run(self):
         inward_pack = self.lanNIC.sniff()
-        print('Sniffed')
-        inward_pack = inward_pack[0]
+        #inward_pack = mocking.sniff_in()
+        print('======== Sniffed ========')
+        #inward_pack = inward_pack[0]
         
-        temp_port = self._gen_unused_port()
+        temp_port = mocking.get_port() #self._gen_unused_port()
 
         self.logger.insert(inward_pack[IP].src, inward_pack[TCP].sport,
         inward_pack[TCP].dport, temp_port)
 
         inward_pack[IP].src = self.wanNIC.ip_address
-        print('==============================')
-        inward_pack.show()
-        self.wanNIC.route(inward_pack)
+        self.wanNIC.route(inward_pack, toPort=temp_port)
 
         outward_pack = self.wanNIC.sniff()
         data = self.logger.get_data_by_port(outward_pack[TCP].dport)
