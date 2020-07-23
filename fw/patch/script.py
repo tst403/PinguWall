@@ -5,6 +5,7 @@ import sys
 import os
 from scapy.all import *
 from netutils import ARPHandler
+import moduleBuilder
 
 print('running...')
 
@@ -20,16 +21,11 @@ getIpByIname = lambda iname : os.popen('ifconfig ' + iname + ' | grep inet | awk
 getMacByIname = lambda iname : os.popen('ifconfig ' + iname + ' | grep -i ether | awk \'{$1=$1;print}\' | cut -d \' \' -f2 | tr -d \'\\n\'').read()
     
 
-def buildLanNic(name):
-    return net.LanNIC(getMacByIname(name), getIpByIname(name), name)
 
+mb = moduleBuilder.moduleBuilder('nat.conf')
 
-def buildWanNic(name):
-    return net.WanNIC(getMacByIname(name), getIpByIname(name), name)
-
-
-lan = buildLanNic('enp0s3')
-wan = buildWanNic('enp0s8')
+lan = mb.buildLan() #buildLanNic('enp0s3')
+wan = mb.buildWan() #buildWanNic('enp0s8')
 wan.lanNIC = lan
 lan.wanNIC = wan
 
@@ -38,13 +34,18 @@ nat = net.NAT(lan, wan)
 routeTableLan = net.RoutingTable()
 routeTableWan = net.RoutingTable()
 
-routeTableLan.add_route(net.IPRoute(net.IPPool('192.168.56.0', '255.255.255.0'), lan.ip_address))
-routeTableWan.add_route(net.IPRoute(net.IPPool('192.168.1.0', '255.255.255.0'), wan.ip_address))
+ipPoolOne, ipPoolTwo = mb.buildIPPoolLan(), mb.buildIPPoolWan()
+
+#routeTableLan.add_route(net.IPRoute(net.IPPool('192.168.73.0', '255.255.255.0'), lan.ip_address))
+routeTableLan.add_route(net.IPRoute(net.IPPool(ipPoolOne[0], ipPoolOne[1]), lan.ip_address))
+#routeTableWan.add_route(net.IPRoute(net.IPPool('10.0.3.2', '255.255.255.0'), wan.ip_address))
+routeTableWan.add_route(net.IPRoute(net.IPPool(ipPoolTwo[0], ipPoolTwo[1]), wan.ip_address))
 
 lan.routing_table = routeTableLan
 wan.routing_table = routeTableWan
 
-wan.routing_table.set_default_gateway('192.168.1.1')
+#wan.routing_table.set_default_gateway('10.0.0.2')
+wan.routing_table.set_default_gateway(mb.buildDefaultGatewayWan())
 lan.routing_table.set_default_gateway(lan.ip_address)
 
 if True:
