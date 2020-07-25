@@ -10,7 +10,7 @@ class ARPHandler:
     @staticmethod
     def __ping_host(ip):
         IPPool.assert_address(ip, True)
-        os.system('ping -c 1 -W 1 {0}')
+        os.system('ping -c 1 -W 1 {0}'.format(ip))
 
     @staticmethod
     def update_macs():
@@ -31,6 +31,7 @@ class ARPHandler:
 
     @staticmethod
     def obtain_mac(ip, retry=True):
+        print('ip ----->', ip)
         if ip in ARPHandler.macs:
             mac = ARPHandler.macs[ip]
             return mac
@@ -38,7 +39,7 @@ class ARPHandler:
             if retry:
                 ARPHandler.__ping_host(ip)
                 ARPHandler.update_macs()
-                obtain_mac(ip, False)
+                ARPHandler.obtain_mac(ip, False)
             else:
                 return None
 
@@ -133,7 +134,6 @@ class NIC:
     def __init__(self, mac_address, ip_address, interface_name, routing_table=None):
         assert isinstance(mac_address, str)
         assert isinstance(ip_address, str)
-        #assert isinstance(routing_table, RoutingTable)
 
         self.mac_address = mac_address
         self.ip_address = ip_address
@@ -159,7 +159,7 @@ class NIC:
 
         destination_ip_route = self.routing_table.find_route(pack_ip)
         destination_mac = ARPHandler.obtain_mac(destination_ip_route)
-        print('TEST --> ' + destination_mac)
+        print('Got destination MAC address --> ' + destination_mac)
 
         # Change transportation layer
         # TODO: Support UDP
@@ -171,9 +171,9 @@ class NIC:
             pack[Ether].src = self.mac_address
             pack[Ether].dst = destination_mac
 
-            #del pack[TCP].options
+            print('Packet to send')
             pack.show()
-            lst = srp1(pack)
+            lst = srp1(pack, iface=self.interface_name)
             return lst
 
         return False
@@ -245,6 +245,7 @@ class PortTranslator:
         self.__portsInUse = 0
         self.portMapIn = dict()
         self.portMapOut = dict()
+        self.portUpgradeMap = dict()
         self.__NUM_OF_PORTS = 1 + maxPort - minPort
 
     def genUnusedPort(self):
@@ -260,7 +261,7 @@ class PortTranslator:
             return tempPort
 
 
-    def assignNewPort(self, ipAddr):
+    def assignNewPort(self, currentPort, ipAddr):
             assignedPort = self.genUnusedPort()
             if assignedPort == -1:
                 return
@@ -273,7 +274,11 @@ class PortTranslator:
             
             self.portMapOut[assignedPort] = ipAddr
             self.__portsInUse += 1
+            self.portUpgradeMap[assignedPort] = currentPort
             return assignedPort
+
+    def getInnerPortByPort(self, outerPort):
+        return self.portUpgradeMap[outerPort]
 
     def releasePort(self, port):
         if self.__portsInUse > 0:
@@ -282,6 +287,8 @@ class PortTranslator:
 
             if ownerIp in self.portMapIn:
                 self.portMapIn[ownerIp].remove(port)
+
+            del self.portUpgradeMap[port]
 
             self.__portsInUse -= 1
 
@@ -324,12 +331,11 @@ class NAT:
 
     def run2(self):
         def outwards():
-            #inward_pack = mocking.sniff_in()
             inward_pack = self.lanNIC.sniff()[0]
             print('======== Sniffed ========')
             
             # Check if first
-            temp_port = self.portTranslator.assignNewPort(inward_pack[IP].src) #mocking.get_port() #self._gen_unused_port()
+            temp_port = self.portTranslator.assignNewPort(inward_pack[TCP].sport ,inward_pack[IP].src)
             print('New port ====> ' + str(temp_port))
 
             inward_pack[IP].src = self.wanNIC.ip_address
@@ -339,10 +345,12 @@ class NAT:
         def inwards(pack):
             usedPort = pack[TCP].dport
             clientIp = self.portTranslator.getIpByPort(usedPort)
+            formerInnerPort = self.portTranslator.getInnerPortByPort(usedPort)
+            pack[TCP].dport = formerInnerPort
 
-            #pack[IP].src = self.lanNIC.ip_address
             pack[IP].dst = clientIp
             del pack[IP].chksum
+            del pack[TCP].chksum
 
             print('======== <-- Inwards <-- ========')
             pack.show()
@@ -350,18 +358,14 @@ class NAT:
             return lst
 
         pack = outwards()[0]
-        inwards(pack)
+        in_pack = inwards(pack)[0]
         print('======== Sucsess! ========')
-
-    # Added port manager, check dst mac of WAN-LAN server 
 
     def run(self):
         inward_pack = self.lanNIC.sniff()
-        #inward_pack = mocking.sniff_in()
         print('======== Sniffed ========')
-        #inward_pack = inward_pack[0]
         
-        temp_port = mocking.get_port() #self._gen_unused_port()
+        temp_port = mocking.get_port()
 
         self.logger.insert(inward_pack[IP].src, inward_pack[TCP].sport,
         inward_pack[TCP].dport, temp_port)
