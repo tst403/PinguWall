@@ -1,3 +1,8 @@
+CONF_FILE="nat.conf"
+
+## Execution ##
+
+read -d '' sql << EOF
 {
 "lanIface":"enp0s3",
 "wanIface":"enp0s8",
@@ -7,3 +12,6 @@
 "wanIpNetmask":"255.255.255.0",
 "defualtGateway":"192.168.1.1"
 }
+EOF
+
+echo "$sql" > $CONF_FILE

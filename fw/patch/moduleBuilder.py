@@ -18,10 +18,13 @@ def buildWanNic(name):
 class moduleBuilder:
     def __init__(self, conf_name):
         self.conf_name = conf_name
-        
-        print(os.popen('pwd').read())
-        with open(self.conf_name, 'r') as f:
-            self.jsonContent = json.loads(f.read())
+            
+        try:
+            with open(self.conf_name, 'r') as f:
+                self.jsonContent = json.loads(f.read())
+        except:
+            print('ModuleBuilder: Run confinit.sh')
+            exit(1)
 
     def buildLan(self):
         global buildLanNic
