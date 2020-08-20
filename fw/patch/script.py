@@ -18,7 +18,7 @@ def elevate():
         os.execvp('sudo', ['sudo', exe, *cmd])    
 
 
-mb = moduleBuilder.moduleBuilder('nat.conf')
+mb = moduleBuilder.moduleBuilder('fw/patch/nat.conf')
 
 lan = mb.buildLan()
 wan = mb.buildWan()
