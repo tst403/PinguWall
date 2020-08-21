@@ -1,26 +1,7 @@
 #!/usr/bin/python3
 
 import random
-
-class bidict(dict):
-    def __init__(self, *args, **kwargs):
-        super(bidict, self).__init__(*args, **kwargs)
-        self.inverse = {}
-        for key, value in self.items():
-            self.inverse.setdefault(value,[]).append(key) 
-
-    def __setitem__(self, key, value):
-        if key in self:
-            self.inverse[self[key]].remove(key) 
-        super(bidict, self).__setitem__(key, value)
-        self.inverse.setdefault(value,[]).append(key)        
-
-    def __delitem__(self, key):
-        self.inverse.setdefault(self[key],[]).remove(key)
-        if self[key] in self.inverse and not self.inverse[self[key]]: 
-            del self.inverse[self[key]]
-        super(bidict, self).__delitem__(key)
-
+from bidict import bidict
 
 class endpoint:
     def __init__(self, ip, port):
@@ -61,11 +42,34 @@ class TransportationTracker:
         self.ongoingOuterPorts.add(temp)
         return temp
 
+    def terminate(self, obj):
+        removed = False
+        isPort = type(obj) == int
+        port = None
 
-    def terminate(externalPort):
-        # TODO: Assert work
-        del self.translator[externalPort]
+        if not isPort:
+            port = self.translator[obj]
 
+        if obj in self.translator:
+            del self.translator[obj]
+            removed = True
+            
+        if obj in self.translator.inverse:
+            del self.translator.inverse[obj]
+            removed = True
+
+        if removed:
+            self.usedPorts -= 1
+
+            # if not port, convert to port
+            self.ongoingOuterPorts.remove(obj if isPort else port)
+
+    def isEmpty(self, debug_level=0):
+        if debug_level > 0:
+            print("Regular: " + str(len(self.translator)) + " Inverse: " + str(len(self.translator.inverse)))
+
+        return len(self.translator) == 0 and len(self.translator.inverse) == 0 and self.usedPorts == 0 and\
+        len(self.ongoingOuterPorts) == 0
 
     def translateOut(self, internalEp):
         if internalEp in self.translator:
@@ -77,10 +81,5 @@ class TransportationTracker:
 
 
     def translateIn(self, externalPort):
-        return self.translator[externalPort]
-
-track = TransportationTracker()
-ext = track.translateOut(endpoint('192.168.1.1', 5555))
-ext = track.translateOut(endpoint('192.168.1.1', 5555))
-print(track)
+        return self.translator.inverse[externalPort]
  
