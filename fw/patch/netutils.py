@@ -2,6 +2,7 @@ import random
 from scapy.all import *
 import os
 import mocking
+import TransportationTracker as tt
 
 class ARPHandler:
     __ARP_TABLE_PATH = '/proc/net/arp'
@@ -311,8 +312,8 @@ class NAT:
         self.lanNIC = lanNIC
         self.wanNIC = wanNIC
         self.logger = TranslationLog()
-        self.ports_in_use = 0
-        self.portTranslator = PortTranslator(minPort=NAT.PORT_MIN, maxPort=NAT.PORT_MAX)
+        self.ports_in_use = 0 # TODO: Remove
+        self.transportTracker = tt.TransportationTracker()
 
     def _get_ports_in_used(self):
         return [ports[2] for ports in self.log.values()]
@@ -334,26 +335,28 @@ class NAT:
             inward_pack = self.lanNIC.sniff()[0]
             print('======== Sniffed ========')
             
-            # Check if first
-            temp_port = self.portTranslator.assignNewPort(inward_pack[TCP].sport ,inward_pack[IP].src)
-            print('New port ====> ' + str(temp_port))
+            assignedPort = self.transportTracker.translateOut(tt.endpoint(inward_pack[IP].src, inward_pack[TCP].sport))
+            print('Assigned port ====> ' + str(assignedPort))
 
             inward_pack[IP].src = self.wanNIC.ip_address
-            lst = self.wanNIC.route(inward_pack, toPort=temp_port)
+            lst = self.wanNIC.route(inward_pack, toPort=assignedPort)
             return lst
 
         def inwards(pack):
-            usedPort = pack[TCP].dport
-            clientIp = self.portTranslator.getIpByPort(usedPort)
-            formerInnerPort = self.portTranslator.getInnerPortByPort(usedPort)
-            pack[TCP].dport = formerInnerPort
+            outerPort = pack[TCP].dport
 
-            pack[IP].dst = clientIp
+            innerEndpoint = self.transportTracker.translateIn(outerPort)
+            
+            pack[TCP].dport = innerEndpoint.port
+            pack[IP].dst = innerEndpoint.ip
+
             del pack[IP].chksum
             del pack[TCP].chksum
 
             print('======== <-- Inwards <-- ========')
             pack.show()
+            
+            # TODO: Check if toPort
             lst = self.lanNIC.route(pack)
             return lst
 
