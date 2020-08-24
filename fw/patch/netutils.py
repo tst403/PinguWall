@@ -216,7 +216,7 @@ class TranslationLog(object):
         return None
 
     def __getitem__(self, key):
-        return self.log.get(key, None)        
+        return self.log.get(key, None)
 
 
 class LanNIC(NIC):
@@ -362,6 +362,7 @@ class NAT:
 
         pack = outwards()[0]
         in_pack = inwards(pack)[0]
+        pack = outwards()[0]
         print('======== Sucsess! ========')
 
     def run(self):
@@ -399,5 +400,4 @@ class SYN_Table:
 
     def verify_stream(self, ip_couple, server_endpoint):
         return self.__table.get(ip_couple) == server_endpoint
-    
-    #def get_
+
