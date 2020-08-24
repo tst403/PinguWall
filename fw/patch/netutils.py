@@ -228,6 +228,16 @@ class LanNIC(NIC):
         pack[IP].src = wanNic.ip_address
         self.wanNIC.route(pack)
 
+    def sniff_test(self):
+        assert 1==2
+        #def is_outwards(pack):
+        #    return pack.haslayer(TCP) and pack.haslayer(IP) and
+        #    and 
+        #return sniff(lfilter=lambda pack: pack.haslayer(Ether) and 
+        #pack[Ether].dst == self.mac_address, count=1, iface=self.interface_name)
+
+
+
 
 class WanNIC(NIC):
     def __init__(self, mac_address, ip_address, iface, lanNIC=None, routing_table=None):
@@ -330,9 +340,13 @@ class NAT:
 
         return temp_port
 
+    def regularSniff(self):
+        return self.lanNIC.sniff()[0]
+
+
     def run2(self):
-        def outwards():
-            inward_pack = self.lanNIC.sniff()[0]
+        def outwards(sniffing=self.regularSniff):
+            inward_pack = sniffing()
             print('======== Sniffed ========')
             
             assignedPort = self.transportTracker.translateOut(tt.endpoint(inward_pack[IP].src, inward_pack[TCP].sport))
@@ -340,6 +354,16 @@ class NAT:
 
             inward_pack[IP].src = self.wanNIC.ip_address
             lst = self.wanNIC.route(inward_pack, toPort=assignedPort)
+            return lst
+
+        def outwards2(pack):
+            print('======== Sniffed2 ========')
+            
+            assignedPort = self.transportTracker.translateOut(tt.endpoint(pack[IP].src, pack[TCP].sport))
+            print('Assigned port2 ====> ' + str(assignedPort))
+
+            pack[IP].src = self.wanNIC.ip_address
+            lst = self.wanNIC.route(pack, toPort=assignedPort)
             return lst
 
         def inwards(pack):
@@ -362,8 +386,13 @@ class NAT:
 
         pack = outwards()[0]
         in_pack = inwards(pack)[0]
-        pack = outwards()[0]
-        print('======== Sucsess! ========')
+        
+        sniffed = sniff(count=1,
+        iface=self.lanNIC.interface_name)
+
+        pack = outwards2(sniffed)
+
+        print('======== Success! ========')
 
     def run(self):
         inward_pack = self.lanNIC.sniff()
