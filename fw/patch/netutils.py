@@ -309,6 +309,69 @@ class PortTranslator:
     def getIpByPort(self, port):
         return self.portMapOut.get(port)
 
+class IPSModule:
+    def __init__(self, passPacket):
+        self.passPacket = passPacket
+
+
+class SYNFloodModule(IPSModule):
+    def __filter_packet(self, packet):
+        def addToDict(self, pack):
+            if pack[TCP].flags == 'S':
+                self.halfOpenDictionary[pack[IP].src].append(pack[TCP].sport)
+            else:
+                try:
+                    self.halfOpenDictionary[pack[IP].src].remove(pack[TCP].sport)
+                except:
+                    pass
+
+        if packet.haslayer(TCP) and packet.haslayer(IP):
+            if not packet[IP].src in self.halfOpenDictionary:
+                if packet[TCP].flags == 'S':
+                    self.halfOpenDictionary[packet[IP].src] = [packet[TCP].sport]
+            else:
+                addToDict(packet)
+
+
+    def __init__(self):
+        super().__init__(self.__filter_packet)
+        self.halfOpenDictionary = dict()
+
+
+class IPS:
+    def __init__(self):
+        self.modules = [SYNFloodModule()]
+
+    def AddToBlacklist(endpoint):
+        pass
+        #TODO
+
+    def passPacket(self, packet):
+        for x in self.modules:
+            if not x.passPacket(packet):
+                self.AddToBlacklist(tt.endpoint(packet[IP].src, packet[TCP].sport))
+                break
+    
+
+class Firewall:
+    def __init__(self, nat):
+        self.nat = nat
+        self.rules = []
+        self.ips = None
+
+
+    def setIPS(ips):
+        self.ips = ips
+    
+
+    
+
+
+    def run(self):
+        lst = []
+        nat.run2(filterFunc=self.ips.passPacket, packetList=lst)
+
+
 
 class NAT:
 
@@ -344,7 +407,7 @@ class NAT:
         return self.lanNIC.sniff()[0]
 
 
-    def run2(self):
+    def run2(self, filterFunc=lambda: True, packetList=None):
         def outwards(sniffing=self.regularSniff):
             inward_pack = sniffing()
             print('======== Sniffed ========')
@@ -384,13 +447,27 @@ class NAT:
             lst = self.lanNIC.route(pack)
             return lst
 
-        pack = outwards()[0]
-        in_pack = inwards(pack)[0]
-        
-        sniffed = sniff(count=1,
-        iface=self.lanNIC.interface_name)
+        def addToList(p):
+            if packetList != None:
+                packetList.append(p)
 
-        pack = outwards2(sniffed)
+        pktLst = []
+        pack = outwards()[0]
+        addToList(pack)
+
+        if not filterFunc(pack):
+            return
+
+        in_pack = inwards(pack)[0]
+        addToList(in_pack)
+
+        if not filterFunc(pack):
+            return
+        
+        pack = outwards()[0]
+        addToList(pack)
+        if not filterFunc(pack):
+            return
 
         print('======== Success! ========')
 
