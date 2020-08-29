@@ -42,7 +42,8 @@ wan.routing_table.set_default_gateway(mb.buildDefaultGatewayWan())
 lan.routing_table.set_default_gateway(lan.ip_address)
 
 if True:
-    nat.run2()
+    for x in range(3):
+        nat.serve()
 else:
     pack = rdpcap('/home/user/Desktop/nat/PinguWall/fw/patch/test.pcapng')[0]
     wan.route(pack)

@@ -3,6 +3,7 @@ from scapy.all import *
 import os
 import mocking
 import TransportationTracker as tt
+import threading
 
 class ARPHandler:
     __ARP_TABLE_PATH = '/proc/net/arp'
@@ -314,6 +315,7 @@ class NAT:
         self.logger = TranslationLog()
         self.ports_in_use = 0 # TODO: Remove
         self.transportTracker = tt.TransportationTracker()
+        self.routingThreads = []
 
     def _get_ports_in_used(self):
         return [ports[2] for ports in self.log.values()]
@@ -330,40 +332,45 @@ class NAT:
 
         return temp_port
 
-    def run2(self):
-        def outwards():
-            inward_pack = self.lanNIC.sniff()[0]
-            print('======== Sniffed ========')
-            
-            assignedPort = self.transportTracker.translateOut(tt.endpoint(inward_pack[IP].src, inward_pack[TCP].sport))
-            print('Assigned port ====> ' + str(assignedPort))
+    def routeAsyncWarper(self, func):
+        t = threading.Thread(target=func)
+        self.routingThreads.append(t)
+        t.start()
 
-            inward_pack[IP].src = self.wanNIC.ip_address
-            lst = self.wanNIC.route(inward_pack, toPort=assignedPort)
-            return lst
+    def serveOutwardsForever():
+        inward_pack = self.lanNIC.sniff()[0]
+        print('======== Sniffed ========')
+        
+        assignedPort = self.transportTracker.translateOut(tt.endpoint(inward_pack[IP].src, inward_pack[TCP].sport))
+        print('Assigned port ====> ' + str(assignedPort))
 
-        def inwards(pack):
-            outerPort = pack[TCP].dport
+        inward_pack[IP].src = self.wanNIC.ip_address
+        lst = self.wanNIC.route(inward_pack, toPort=assignedPort)
+        return lst
 
-            innerEndpoint = self.transportTracker.translateIn(outerPort)
-            
-            pack[TCP].dport = innerEndpoint.port
-            pack[IP].dst = innerEndpoint.ip
+    def serveInwardsForever():
+        pack = self.wanNIC.sniff()[0]
+        outerPort = pack[TCP].dport
 
-            del pack[IP].chksum
-            del pack[TCP].chksum
+        innerEndpoint = self.transportTracker.translateIn(outerPort)
+        
+        pack[TCP].dport = innerEndpoint.port
+        pack[IP].dst = innerEndpoint.ip
 
-            print('======== <-- Inwards <-- ========')
-            pack.show()
-            
-            # TODO: Check if toPort
-            lst = self.lanNIC.route(pack)
-            return lst
+        del pack[IP].chksum
+        del pack[TCP].chksum
 
-        pack = outwards()[0]
-        in_pack = inwards(pack)[0]
-        pack = outwards()[0]
-        print('======== Sucsess! ========')
+        print('======== <-- Inwards <-- ========')
+        pack.show()
+        
+        # TODO: Check if toPort
+        lst = self.lanNIC.route(pack)
+        return lst
+
+    def serve(self):
+        self.routeAsyncWarper(self.serveOutwardsForever)
+        self.routeAsyncWarper(self.serveInwardsForever)
+        print('Serving')
 
     def run(self):
         inward_pack = self.lanNIC.sniff()
