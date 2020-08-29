@@ -338,16 +338,15 @@ class NAT:
 
 
     def _insert_packet(self, pack):
+	
         self.packetQueue = queue(sorted(self.packetQueue, key=lambda p: p.time))
 
     def startSniffing(self):
         def workerIn():
-            sniff(lfilter=lambda pack: pack.haslayer(Ether) and 
-            pack[Ether].dst == self.mac_address, prn=_insert_packet, iface=self.lanNIC.interface_name)
+            sniff(lfilter=lambda pack: pack.haslayer(Ether), prn=self._insert_packet, iface=self.lanNIC.interface_name)
 
         def workerOut():
-            sniff(lfilter=lambda pack: pack.haslayer(Ether) and 
-            pack[Ether].dst == self.mac_address, prn=_insert_packet, iface=self.wanNIC.interface_name)
+            sniff(lfilter=lambda pack: pack.haslayer(Ether), prn=self._insert_packet, iface=self.wanNIC.interface_name)
 
         t1 = threading.Thread(target=workerIn)
         t2 = threading.Thread(target=workerIn)
@@ -393,18 +392,19 @@ class NAT:
         return lst
 
     def serve(self):
+        self.startSniffing()
         print('serving')
 
         isInside = lambda pack: pack.haslayer(IP) and self.lanIpPool.check_ip(pack[IP].src) and not self.lanIpPool.check_ip(pack[IP].dst)
         isOutside = lambda pack: not isInside(pack) 
 
         while 1:
-            if not self.packetQueue.empty():
+            if self.packetQueue:
                 pack = self.packetQueue.pop()
                 
                 if isInside(pack):
                     self.routeAsyncWarper(self.serveOutwards, pack)
-                else if isOutside(pack):
+                elif isOutside(pack):
                     self.routeAsyncWarper(self.serveInwards, pack)
                 else:
                     print('Unhandeled packet')
