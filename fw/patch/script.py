@@ -25,8 +25,6 @@ wan = mb.buildWan()
 wan.lanNIC = lan
 lan.wanNIC = wan
 
-nat = net.NAT(lan, wan)
-
 routeTableLan = net.RoutingTable()
 routeTableWan = net.RoutingTable()
 
@@ -40,6 +38,8 @@ wan.routing_table = routeTableWan
 
 wan.routing_table.set_default_gateway(mb.buildDefaultGatewayWan())
 lan.routing_table.set_default_gateway(lan.ip_address)
+
+nat = net.NAT(lan, wan, ipPoolOne, ipPoolTwo)
 
 if True:
     for x in range(3):

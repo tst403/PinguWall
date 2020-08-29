@@ -3,7 +3,8 @@ from scapy.all import *
 import os
 import mocking
 import TransportationTracker as tt
-import threading
+from collections import deque as queue
+
 
 class ARPHandler:
     __ARP_TABLE_PATH = '/proc/net/arp'
@@ -307,7 +308,7 @@ class NAT:
     PORT_MIN = 1110
     PORT_MAX = 65000
     
-    def __init__(self, lanNIC, wanNIC):
+    def __init__(self, lanNIC, wanNIC, lanIpPool, wanIpPool):
         ARPHandler.update_macs()
 
         self.lanNIC = lanNIC
@@ -316,6 +317,9 @@ class NAT:
         self.ports_in_use = 0 # TODO: Remove
         self.transportTracker = tt.TransportationTracker()
         self.routingThreads = []
+        self.sniffingThreads = []
+        self.packetQueue = queue()
+        self.lanIpPool, self.wanIpPool = lanIpPool, wanIpPool
 
     def _get_ports_in_used(self):
         return [ports[2] for ports in self.log.values()]
@@ -332,13 +336,35 @@ class NAT:
 
         return temp_port
 
-    def routeAsyncWarper(self, func):
-        t = threading.Thread(target=func)
+
+    def _insert_packet(self, pack):
+        self.packetQueue = queue(sorted(self.packetQueue, key=lambda p: p.time))
+
+    def startSniffing(self):
+        def workerIn():
+            sniff(lfilter=lambda pack: pack.haslayer(Ether) and 
+            pack[Ether].dst == self.mac_address, prn=_insert_packet, iface=self.lanNIC.interface_name)
+
+        def workerOut():
+            sniff(lfilter=lambda pack: pack.haslayer(Ether) and 
+            pack[Ether].dst == self.mac_address, prn=_insert_packet, iface=self.wanNIC.interface_name)
+
+        t1 = threading.Thread(target=workerIn)
+        t2 = threading.Thread(target=workerIn)
+
+        self.sniffingThreads.append(t1)
+        self.sniffingThreads.append(t2)
+
+        t1.start()
+        t2.start()
+
+
+    def routeAsyncWarper(self, func, pack):
+        t = threading.Thread(target=func, args=(pack,))
         self.routingThreads.append(t)
         t.start()
 
-    def serveOutwardsForever():
-        inward_pack = self.lanNIC.sniff()[0]
+    def serveOutwards(inward_pack):
         print('======== Sniffed ========')
         
         assignedPort = self.transportTracker.translateOut(tt.endpoint(inward_pack[IP].src, inward_pack[TCP].sport))
@@ -348,8 +374,7 @@ class NAT:
         lst = self.wanNIC.route(inward_pack, toPort=assignedPort)
         return lst
 
-    def serveInwardsForever():
-        pack = self.wanNIC.sniff()[0]
+    def serveInwards(pack):
         outerPort = pack[TCP].dport
 
         innerEndpoint = self.transportTracker.translateIn(outerPort)
@@ -368,9 +393,21 @@ class NAT:
         return lst
 
     def serve(self):
-        self.routeAsyncWarper(self.serveOutwardsForever)
-        self.routeAsyncWarper(self.serveInwardsForever)
-        print('Serving')
+        print('serving')
+
+        isInside = lambda pack: pack.haslayer(IP) and self.lanIpPool.check_ip(pack[IP].src) and not self.lanIpPool.check_ip(pack[IP].dst)
+        isOutside = lambda pack: not isInside(pack) 
+
+        while 1:
+            if not self.packetQueue.empty():
+                pack = self.packetQueue.pop()
+                
+                if isInside(pack):
+                    self.routeAsyncWarper(self.serveOutwards, pack)
+                else if isOutside(pack):
+                    self.routeAsyncWarper(self.serveInwards, pack)
+                else:
+                    print('Unhandeled packet')
 
     def run(self):
         inward_pack = self.lanNIC.sniff()
