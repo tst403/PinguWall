@@ -394,24 +394,7 @@ class NAT:
         self.routingThreads.append(t)
         t.start()
 
-    def serveOutwards(inward_pack):
-        print('======== Sniffed ========')
-        
-        assignedPort = self.transportTracker.translateOut(tt.endpoint(inward_pack[IP].src, inward_pack[TCP].sport))
-        print('Assigned port ====> ' + str(assignedPort))
-
-#<<<<<<< AsyncQueueSniffing
-        def outwards_param(inward_pack):
-            # Check if first
-            if True:
-                temp_port = self.portTranslator.assignNewPort(inward_pack[TCP].sport ,inward_pack[IP].src)
-                print('New port ====> ' + str(temp_port))
-            else:
-                temp_port = -1 # Get new port
-
-            inward_pack[IP].src = self.wanNIC.ip_address
-            lst = self.wanNIC.route(inward_pack, toPort=temp_port)
-            return lst
+        # Old format
 
         pack = outwards()[0]
         in_pack = inwards(pack)[0]
@@ -419,6 +402,7 @@ class NAT:
         print('======== TEST ========')
         pack = sniff(iface=self.lanNIC.interface_name, lfilter = lambda x: x.haslayer(TCP) and x[TCP].dport == 4444)
         pack.show()
+
 
     def lan_sniff_handler(self, pack):
         self.pendingLANQueue.put(pack)
@@ -452,10 +436,6 @@ class NAT:
     def run3(self):
         self.sniff_init()
         self.queue_handler_init()
-#=======
-        inward_pack[IP].src = self.wanNIC.ip_address
-        lst = self.wanNIC.route(inward_pack, toPort=assignedPort)
-        return lst
 
     def serveInwards(pack):
         outerPort = pack[TCP].dport
@@ -475,24 +455,6 @@ class NAT:
         lst = self.lanNIC.route(pack)
         return lst
 
-    def serve(self):
-        self.startSniffing()
-        print('serving')
-
-        isInside = lambda pack: pack.haslayer(IP) and self.lanIpPool.check_ip(pack[IP].src) and not self.lanIpPool.check_ip(pack[IP].dst)
-        isOutside = lambda pack: not isInside(pack) 
-
-        while 1:
-            if self.packetQueue:
-                pack = self.packetQueue.pop()
-                
-                if isInside(pack):
-                    self.routeAsyncWarper(self.serveOutwards, pack)
-                elif isOutside(pack):
-                    self.routeAsyncWarper(self.serveInwards, pack)
-                else:
-                    print('Unhandeled packet')
-#>>>>>>> AsynchronousSniffing
 
     def run(self):
         inward_pack = self.lanNIC.sniff()
