@@ -6,7 +6,6 @@ import queue
 import threading
 import TransportationTracker as tt
 
-
 class ARPHandler:
     __ARP_TABLE_PATH = '/proc/net/arp'
     macs = dict()
@@ -171,6 +170,8 @@ class NIC:
         # TODO: Support UDP
 
         if pack.haslayer(TCP) and toPort != '':
+            raise Exception()
+            # TODO: return value ignored!
             self.translate_pack_port_out(pack, toPort)
 
         if destination_mac is not None:
@@ -437,6 +438,18 @@ class NAT:
         self.sniff_init()
         self.queue_handler_init()
 
+    def serveOutwards(inward_pack):
+        # TODO: Dont return asnwer
+        assignedPort = self.transportTracker.translateOut(tt.endpoint(inward_pack[IP].src, inward_pack[TCP].sport))
+        print('Assigned port ====> ' + str(assignedPort))
+        print('======== --> Outwards --> ========')
+
+        inward_pack[IP].src = self.wanNIC.ip_address
+        del inward_pack[IP].chksum
+
+        lst = self.wanNIC.route(inward_pack, toPort=assignedPort)
+        return lst
+
     def serveInwards(pack):
         outerPort = pack[TCP].dport
 
@@ -451,6 +464,7 @@ class NAT:
         print('======== <-- Inwards <-- ========')
         pack.show()
         
+        # TODO: Dont return value
         # TODO: Check if toPort
         lst = self.lanNIC.route(pack)
         return lst
