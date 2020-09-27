@@ -41,9 +41,6 @@ lan.routing_table.set_default_gateway(lan.ip_address)
 
 nat = net.NAT(lan, wan, ipPoolOne, ipPoolTwo)
 
-if True:
-    print('starting')
-    nat.run3()
-else:
-    pack = rdpcap('/home/user/Desktop/nat/PinguWall/fw/patch/test.pcapng')[0]
-    wan.route(pack)
+
+print('starting')
+nat.run3()

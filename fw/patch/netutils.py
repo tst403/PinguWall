@@ -143,7 +143,7 @@ class NIC:
         self.ip_address = ip_address
         self.routing_table = routing_table
         self.interface_name = interface_name
-        self.sniffFilter = lambda pack: pack.haslayer(Ether) and pack[Ether].dst == self.mac_address
+        self.sniffFilter = lambda pack: pack.haslayer(Ether) and pack[Ether].dst == self.mac_address and pack.haslayer(IP) and pack[IP].src != self.ip_address
 
     def translate_pack_port_out(self, pack, port):
         pack[TCP].sport = port
@@ -170,9 +170,8 @@ class NIC:
         # TODO: Support UDP
 
         if pack.haslayer(TCP) and toPort != '':
-            raise Exception()
-            # TODO: return value ignored!
-            self.translate_pack_port_out(pack, toPort)
+            # TODO: Assert is working(pack assignment)
+            pack = self.translate_pack_port_out(pack, toPort)
 
         if destination_mac is not None:
             pack[Ether].src = self.mac_address
@@ -180,8 +179,7 @@ class NIC:
 
             print('Packet to send')
             pack.show()
-            lst = srp1(pack, iface=self.interface_name)
-            return lst
+            sendp(pack, iface=self.interface_name)
 
         return False
 
@@ -190,7 +188,7 @@ class NIC:
 
     def async_sniffer_start(self, callback):
         def sniffer():
-            sniff(lfilter=self.sniffFilter, prn=callback)
+            sniff(lfilter=self.sniffFilter, prn=callback, iface=self.interface_name)
 
         self.sniffingThread = threading.Thread(target=sniffer)
         self.sniffingThread.start()
@@ -338,7 +336,6 @@ class NAT:
         self.transportTracker = tt.TransportationTracker()
         self.routingThreads = []
         self.sniffingThreads = []
-        self.packetQueue = queue()
         self.lanIpPool, self.wanIpPool = lanIpPool, wanIpPool
 
     def _get_ports_in_used(self):
@@ -420,14 +417,22 @@ class NAT:
             p = None
         
             while 1:
-
                 if not self.pendingLANQueue.empty():
                     p = self.pendingLANQueue.get()
-                    p.show()
+
+                    # TODO: Make sure we arent routing packets with foreign communication that we haven't started
+                    try:
+                        self.serveOutwards(p)
+                    except:
+                        print('LAN dropped packet')
                     
                 if not self.pendingWANQueue.empty():
                     p = self.pendingWANQueue.get()
-                    p.show()
+
+                    try:
+                        self.serveInwards(p)
+                    except:
+                        print('WAN dropped packet')
 
                 time.sleep(self.packetHandlingDelay)
 
@@ -438,8 +443,7 @@ class NAT:
         self.sniff_init()
         self.queue_handler_init()
 
-    def serveOutwards(inward_pack):
-        # TODO: Dont return asnwer
+    def serveOutwards(self, inward_pack):
         assignedPort = self.transportTracker.translateOut(tt.endpoint(inward_pack[IP].src, inward_pack[TCP].sport))
         print('Assigned port ====> ' + str(assignedPort))
         print('======== --> Outwards --> ========')
@@ -447,10 +451,9 @@ class NAT:
         inward_pack[IP].src = self.wanNIC.ip_address
         del inward_pack[IP].chksum
 
-        lst = self.wanNIC.route(inward_pack, toPort=assignedPort)
-        return lst
+        self.wanNIC.route(inward_pack, toPort=assignedPort)
 
-    def serveInwards(pack):
+    def serveInwards(self, pack):
         outerPort = pack[TCP].dport
 
         innerEndpoint = self.transportTracker.translateIn(outerPort)
@@ -464,12 +467,10 @@ class NAT:
         print('======== <-- Inwards <-- ========')
         pack.show()
         
-        # TODO: Dont return value
         # TODO: Check if toPort
-        lst = self.lanNIC.route(pack)
-        return lst
+        self.lanNIC.route(pack)
 
-
+    # TODO: Remove all those kind of shitty functions
     def run(self):
         inward_pack = self.lanNIC.sniff()
         print('======== Sniffed ========')
