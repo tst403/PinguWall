@@ -19,8 +19,8 @@ class endpoint:
         return ''.join([self.ip, str(self.port)]).__hash__()
 
 class TransportationTracker:
-    MIN_PORT = 1050
-    MAX_PORT = 65000
+    MIN_PORT = 49152
+    MAX_PORT = 65535
 
     def __init__(self):
         self.translator = bidict()
