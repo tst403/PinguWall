@@ -1,0 +1,5 @@
+.idea
+.vscode/settings.json
+fw/patch/__pycache__/
+.vscode
+fw/patch/nat.conf
