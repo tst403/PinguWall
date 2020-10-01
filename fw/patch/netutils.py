@@ -4,7 +4,7 @@ import os
 import mocking
 import queue
 import threading
-import TransportationTracker as tt
+import IPS.helper.endpoint as tt
 
 class ARPHandler:
     __ARP_TABLE_PATH = '/proc/net/arp'
@@ -281,7 +281,7 @@ class NAT:
     PORT_MIN = 1110
     PORT_MAX = 65000
     
-    def __init__(self, lanNIC, wanNIC, lanIpPool, wanIpPool):
+    def __init__(self, lanNIC, wanNIC, lanIpPool, wanIpPool, ips=None):
         ARPHandler.update_macs()
 
         self.lanNIC = lanNIC
@@ -295,6 +295,8 @@ class NAT:
         self.routingThreads = []
         self.sniffingThreads = []
         self.lanIpPool, self.wanIpPool = lanIpPool, wanIpPool
+
+        self.ips = ips
 
     def _get_ports_in_used(self):
         return [ports[2] for ports in self.log.values()]
@@ -347,11 +349,16 @@ class NAT:
         pack = sniff(iface=self.lanNIC.interface_name, lfilter = lambda x: x.haslayer(TCP) and x[TCP].dport == 4444)
         pack.show()
 
+    def ips_packet_notifier(self, pack):
+        if self.ips:
+            self.ips.notify_packet(pack)
 
     def lan_sniff_handler(self, pack):
+        ips_packet_notifier(pack)
         self.pendingLANQueue.put(pack)
 
     def wan_sniff_handler(self, pack):
+        ips_packet_notifier(pack)
         self.pendingWANQueue.put(pack)
 
     def sniff_init(self):

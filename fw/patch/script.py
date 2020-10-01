@@ -6,8 +6,12 @@ import os
 from scapy.all import *
 from netutils import ARPHandler
 import moduleBuilder
+import IPS.ips as ips
 
 print('running...')
+
+ips = ips.IPS()
+sys.exit(0)
 
 def elevate():
     exe = sys.executable
@@ -40,7 +44,7 @@ wan.routing_table.set_default_gateway(mb.buildDefaultGatewayWan())
 lan.routing_table.set_default_gateway(lan.ip_address)
 
 nat = net.NAT(lan, wan, ipPoolOne, ipPoolTwo)
-
+nat.ips = ips
 
 print('starting')
-nat.run3()
+#nat.run3()
