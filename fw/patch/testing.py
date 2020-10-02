@@ -112,5 +112,11 @@ class TestNetutilsMethods(unittest.TestCase):
 		self.assertEqual(1, 1)
 
 
+class TestIPSMethods(unittest.TestCase):
+
+	def test_sainity(self):
+		self.assertEqual(1, 1)
+
+
 if __name__ == '__main__':
 	unittest.main()
