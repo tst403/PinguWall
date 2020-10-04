@@ -10,9 +10,6 @@ import IPS.ips as ips
 
 print('running...')
 
-ips = ips.IPS()
-sys.exit(0)
-
 def elevate():
     exe = sys.executable
     cmd = sys.argv

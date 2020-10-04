@@ -25,17 +25,13 @@ from analysisResult     import analysisResult
 from analysisSuggestion import analysisSuggestion
 from helper.endpoint    import endpoint
 
-class stub_blade:
-    def __init__(self):
-        pass
 
-
-    def analyze(self, packets: list) -> analysisSuggestion:
-        if len(packets) > 1:
-            return analysisSuggestion(
-                endpoint(endpoint.ANY, endpoint.ANY),
-                endpoint(endpoint.ANY, endpoint.ANY),
-                False,
-                100,
-                lambda pack: True
-            )
+def analyze(packets: list) -> analysisSuggestion:
+    if len(packets) > 1:
+        return analysisSuggestion(
+            endpoint(endpoint.ANY, endpoint.ANY),
+            endpoint(endpoint.ANY, endpoint.ANY),
+            False,
+            100,
+            lambda pack: True
+        )

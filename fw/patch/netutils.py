@@ -281,7 +281,7 @@ class NAT:
     PORT_MIN = 1110
     PORT_MAX = 65000
     
-    def __init__(self, lanNIC, wanNIC, lanIpPool, wanIpPool, ips=None):
+    def __init__(self, lanNIC, wanNIC, lanIpPool, wanIpPool, ips=None, firewall=None):
         ARPHandler.update_macs()
 
         self.lanNIC = lanNIC
@@ -297,6 +297,7 @@ class NAT:
         self.lanIpPool, self.wanIpPool = lanIpPool, wanIpPool
 
         self.ips = ips
+        self.firewall = firewall
 
     def _get_ports_in_used(self):
         return [ports[2] for ports in self.log.values()]
@@ -365,6 +366,10 @@ class NAT:
         self.lanNIC.async_sniffer_start(self.lan_sniff_handler)
         self.wanNIC.async_sniffer_start(self.wan_sniff_handler)
 
+    def notify_firewall(self, pack):
+        if self.firewall:
+            self.firewall.onPacketReceived(pack)
+
     def queue_handler_init(self):
         def worker():
             p = None
@@ -376,16 +381,18 @@ class NAT:
                     # TODO: Make sure we arent routing packets with foreign communication that we haven't started
                     try:
                         self.serveOutwards(p)
+                        self.notify_firewall(p)
                     except:
-                        print('LAN dropped packet')
+                        print('packet dropped by WAN')
                     
                 if not self.pendingWANQueue.empty():
                     p = self.pendingWANQueue.get()
 
                     try:
                         self.serveInwards(p)
+                        self.notify_firewall(p)
                     except:
-                        print('WAN dropped packet')
+                        print('packet dropped by WAN')
 
                 time.sleep(self.packetHandlingDelay)
 
