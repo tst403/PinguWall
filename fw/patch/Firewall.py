@@ -46,6 +46,16 @@ class Firewall:
         self.ips.load_modules()
 
 
+    def filter_packet(self, pack):
+        if not self.staticPolicy.runChain(pack):
+            return False
+
+        if self.currentIPSPolicy:
+            return self.currentIPSPolicy(pack)
+        
+        return True
+
+
     def onPacketReceived(self, pack):
         self.ips.notifyPacket(pack)
 
@@ -59,3 +69,4 @@ class Firewall:
     def start(self):
         self.nat.run3()
 
+# TODO: Add filtering to NAT

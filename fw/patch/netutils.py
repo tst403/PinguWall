@@ -380,6 +380,10 @@ class NAT:
 
                     # TODO: Make sure we arent routing packets with foreign communication that we haven't started
                     try:
+                        if self.firewall:
+                            if not self.firewall.filter_packet(p):
+                                print('packet dropped by Firewall [WAN]')
+
                         self.serveOutwards(p)
                         self.notify_firewall(p)
                     except:
@@ -389,6 +393,10 @@ class NAT:
                     p = self.pendingWANQueue.get()
 
                     try:
+                        if self.firewall:
+                            if not self.firewall.filter_packet(p):
+                                print('packet dropped by Firewall [LAN]')
+
                         self.serveInwards(p)
                         self.notify_firewall(p)
                     except:
