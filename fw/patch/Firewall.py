@@ -1,13 +1,14 @@
 import  netutils    as      net
 from    IPS.ips     import  IPS
 from    fwRule      import  rule
+import moduleBuilder
 
 class Firewall:
     __STUB_FUNC = lambda pack: True
 
 
     def __init__(self):
-        self.nat = nat
+        self.nat = None
         self.ips = None
         self.staticPolicy = rule(Firewall.__STUB_FUNC)
         self.currentIPSPolicy = None

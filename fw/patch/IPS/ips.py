@@ -1,6 +1,6 @@
 from queue import Queue as cyclicQueue
-from analysisResult import analysisResult 
-import def_ips_blade_stub as blade_stub
+from IPS.analysisResult import analysisResult 
+import IPS.def_ips_blade_stub as blade_stub
 from scapy.all import *
 import importlib
 import pkgutil
@@ -33,7 +33,7 @@ class IPS:
         self.watch      = cyclicQueue(maxsize=IPS.WATCH_SIZE)
         self.blades     = []
         self.tolerance  = tolerance
-        self.exportPolicy.previousResult = None
+        self.previousPolicy = None
 
 
     def run_inspection(self):
@@ -52,7 +52,7 @@ class IPS:
             if blade_res.sevirity > self.tolerance:
                 result += blade_res
 
-        self.run_inspection.previousResult = result
+        self.previousPolicy = result
         return result
 
 
@@ -87,10 +87,10 @@ class IPS:
     def exportPolicy(self):
 
         def answer(pack):
-            if self.exportPolicy.previousResult == None:
+            if self.previousPolicy == None:
                 return True
 
-            for suggestion in self.exportPolicy.previousResult.suggestions:
+            for suggestion in self.previousPolicy.suggestions:
                 func = suggestion.export_function()
                 if not func(pack):
                     return False
@@ -100,6 +100,7 @@ class IPS:
         return answer
 
 
+'''
 # TODO: Remove test
 def test():
     ips = IPS()
@@ -114,5 +115,5 @@ def test():
     print(f(Ether()/IP()/TCP()))
     a=2
 
-test()
+test()'''
 

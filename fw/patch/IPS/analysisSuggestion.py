@@ -1,5 +1,5 @@
 from scapy.all import *
-from helper.endpoint import endpoint
+from IPS.helper.endpoint import endpoint
 
 class analysisSuggestion:
     def __init__(self, epSource, epDestination, bidirectional, sevirity, blockFunction, ignoreEndpoints=False):

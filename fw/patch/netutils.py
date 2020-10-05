@@ -4,7 +4,7 @@ import os
 import mocking
 import queue
 import threading
-import IPS.helper.endpoint as tt
+import TransportationTracker as tt
 
 class ARPHandler:
     __ARP_TABLE_PATH = '/proc/net/arp'
@@ -355,11 +355,11 @@ class NAT:
             self.ips.notify_packet(pack)
 
     def lan_sniff_handler(self, pack):
-        ips_packet_notifier(pack)
+        self.ips_packet_notifier(pack)
         self.pendingLANQueue.put(pack)
 
     def wan_sniff_handler(self, pack):
-        ips_packet_notifier(pack)
+        self.ips_packet_notifier(pack)
         self.pendingWANQueue.put(pack)
 
     def sniff_init(self):

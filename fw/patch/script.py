@@ -7,6 +7,7 @@ from scapy.all import *
 from netutils import ARPHandler
 import moduleBuilder
 import IPS.ips as ips
+import Firewall
 
 print('running...')
 
@@ -18,7 +19,7 @@ def elevate():
     if uid != 0:
         os.execvp('sudo', ['sudo', exe, *cmd])    
 
-
+'''
 mb = moduleBuilder.moduleBuilder('./fw/patch/nat.conf')
 
 lan = mb.buildLan()
@@ -43,5 +44,12 @@ lan.routing_table.set_default_gateway(lan.ip_address)
 nat = net.NAT(lan, wan, ipPoolOne, ipPoolTwo)
 nat.ips = ips
 
-print('starting')
+print('starting')'''
 #nat.run3()
+
+fw = Firewall.Firewall()
+
+fw.buildNAT()
+fw.buildIPS()
+
+fw.start()

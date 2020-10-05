@@ -1,6 +1,6 @@
-from analysisResult     import analysisResult
-from analysisSuggestion import analysisSuggestion
-from helper.endpoint    import endpoint
+from IPS.analysisResult     import analysisResult
+from IPS.analysisSuggestion import analysisSuggestion
+from IPS.helper.endpoint    import endpoint
 
 def analyze(packets: list) -> analysisSuggestion:
     return analysisSuggestion(
