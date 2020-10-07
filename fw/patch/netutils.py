@@ -5,6 +5,7 @@ import mocking
 import queue
 import threading
 import TransportationTracker as tt
+import IPS.helper.endpoint as ep
 
 class ARPHandler:
     __ARP_TABLE_PATH = '/proc/net/arp'
@@ -379,12 +380,12 @@ class NAT:
                     p = self.pendingLANQueue.get()
 
                     # TODO: Make sure we arent routing packets with foreign communication that we haven't started
-                    try:
-                        if self.firewall:
-                            if not self.firewall.filter_packet(p):
-                                print('packet dropped by Firewall [WAN]')
+                    if self.firewall:
+                        if not self.firewall.filter_packet(p):
+                            print('packet dropped by Firewall [WAN]')
 
                         self.serveOutwards(p)
+                    try:
                         self.notify_firewall(p)
                     except:
                         print('packet dropped by WAN')
@@ -392,15 +393,15 @@ class NAT:
                 if not self.pendingWANQueue.empty():
                     p = self.pendingWANQueue.get()
 
-                    try:
-                        if self.firewall:
-                            if not self.firewall.filter_packet(p):
-                                print('packet dropped by Firewall [LAN]')
+                    if self.firewall:
+                        if not self.firewall.filter_packet(p):
+                            print('packet dropped by Firewall [LAN]')
 
+                    try:
                         self.serveInwards(p)
                         self.notify_firewall(p)
                     except:
-                        print('packet dropped by WAN')
+                        print('packet dropped by LAN')
 
                 time.sleep(self.packetHandlingDelay)
 
@@ -412,7 +413,7 @@ class NAT:
         self.queue_handler_init()
 
     def serveOutwards(self, inward_pack):
-        assignedPort = self.transportTracker.translateOut(tt.endpoint(inward_pack[IP].src, inward_pack[TCP].sport))
+        assignedPort = self.transportTracker.translateOut(ep.endpoint(inward_pack[IP].src, inward_pack[TCP].sport))
         print('Assigned port ====> ' + str(assignedPort))
         print('======== --> Outwards --> ========')
 
