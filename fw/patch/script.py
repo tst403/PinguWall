@@ -8,6 +8,7 @@ from netutils import ARPHandler
 import moduleBuilder
 import IPS.ips as ips
 import Firewall
+from fwRule import rule
 
 print('running...')
 
@@ -51,5 +52,10 @@ fw = Firewall.Firewall()
 
 fw.buildNAT()
 fw.buildIPS()
+
+fw.staticPolicy.append(rule(
+    lambda pack: not(pack.haslayer(Ether) and pack.haslayer(IP) and pack.haslayer(TCP)
+    and 4444 in [pack[TCP].sport, pack[TCP].dport])
+))
 
 fw.start()

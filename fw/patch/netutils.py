@@ -374,6 +374,7 @@ class NAT:
     def queue_handler_init(self):
         def worker():
             p = None
+            drop = False
         
             while 1:
                 if not self.pendingLANQueue.empty():
@@ -383,12 +384,16 @@ class NAT:
                     if self.firewall:
                         if not self.firewall.filter_packet(p):
                             print('packet dropped by Firewall [WAN]')
+                            drop = True
 
-                        self.serveOutwards(p)
-                    try:
-                        self.notify_firewall(p)
-                    except:
-                        print('packet dropped by WAN')
+                    if not drop:
+                        try:
+                            self.serveOutwards(p)
+                            self.notify_firewall(p)
+                        except:
+                            print('packet dropped by WAN')
+                    
+                    drop = False
                     
                 if not self.pendingWANQueue.empty():
                     p = self.pendingWANQueue.get()
@@ -396,12 +401,14 @@ class NAT:
                     if self.firewall:
                         if not self.firewall.filter_packet(p):
                             print('packet dropped by Firewall [LAN]')
+                            drop = True
 
-                    try:
-                        self.serveInwards(p)
-                        self.notify_firewall(p)
-                    except:
-                        print('packet dropped by LAN')
+                    if not drop:
+                        try:
+                            self.serveInwards(p)
+                            self.notify_firewall(p)
+                        except:
+                            print('packet dropped by LAN')
 
                 time.sleep(self.packetHandlingDelay)
 
