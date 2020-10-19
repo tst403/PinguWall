@@ -146,8 +146,13 @@ class NIC:
         self.sniffFilter = lambda pack: pack.haslayer(Ether) and pack[Ether].dst == self.mac_address and pack.haslayer(IP) and pack[IP].src != self.ip_address
 
     def translate_pack_port_out(self, pack, port):
-        pack[TCP].sport = port
-        del pack[TCP].chksum
+        if pack.haslayer(TCP):
+            pack[TCP].sport = port
+            del pack[TCP].chksum
+        else:
+            pack[UDP].sport = port
+            del pack[UDP].chksum
+
         return pack
 
     def route(self, pack, toPort=''):
@@ -167,7 +172,7 @@ class NIC:
 
         # Change transportation layer
 
-        if pack.haslayer(TCP) and toPort != '':
+        if (pack.haslayer(TCP) or pack.haslayer(UDP)) and toPort != '':
             pack = self.translate_pack_port_out(pack, toPort)
 
         if destination_mac is not None:
@@ -177,6 +182,7 @@ class NIC:
             print('Packet to send')
             pack.show()
             sendp(pack, iface=self.interface_name)
+            return True
 
         return False
 
@@ -420,7 +426,12 @@ class NAT:
         self.queue_handler_init()
 
     def serveOutwards(self, inward_pack):
-        assignedPort = self.transportTracker.translateOut(ep.endpoint(inward_pack[IP].src, inward_pack[TCP].sport))
+
+        if inward_pack.haslayer(TCP):
+            assignedPort = self.transportTracker.translateOut(ep.endpoint(inward_pack[IP].src, inward_pack[TCP].sport))
+        elif inward_pack.haslayer(UDP):
+            assignedPort = self.transportTracker.translateOut(ep.endpoint(inward_pack[IP].src, inward_pack[UDP].sport))
+
         print('Assigned port ====> ' + str(assignedPort))
         print('======== --> Outwards --> ========')
 
@@ -430,15 +441,23 @@ class NAT:
         self.wanNIC.route(inward_pack, toPort=assignedPort)
 
     def serveInwards(self, pack):
-        outerPort = pack[TCP].dport
+        outerPort = pack[TCP].dport if pack.haslayer(TCP) else pack[UDP].dport
 
         innerEndpoint = self.transportTracker.translateIn(outerPort)
         
-        pack[TCP].dport = innerEndpoint.port
+        if pack.haslayer(TCP):
+            pack[TCP].dport = innerEndpoint.port
+        else:
+            pack[UDP].dport = innerEndpoint.port
+
         pack[IP].dst = innerEndpoint.ip
 
         del pack[IP].chksum
-        del pack[TCP].chksum
+
+        if pack.haslayer(TCP):
+            del pack[TCP].chksum
+        else:
+            del pack[UDP].chksum
 
         print('======== <-- Inwards <-- ========')
         pack.show()
