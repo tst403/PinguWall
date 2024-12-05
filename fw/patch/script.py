@@ -18,14 +18,12 @@ def elevate():
         os.execvp('sudo', ['sudo', exe, *cmd])    
 
 
-mb = moduleBuilder.moduleBuilder('nat.conf')
+mb = moduleBuilder.moduleBuilder('./fw/patch/nat.conf')
 
 lan = mb.buildLan()
 wan = mb.buildWan()
 wan.lanNIC = lan
 lan.wanNIC = wan
-
-nat = net.NAT(lan, wan)
 
 routeTableLan = net.RoutingTable()
 routeTableWan = net.RoutingTable()
@@ -41,8 +39,8 @@ wan.routing_table = routeTableWan
 wan.routing_table.set_default_gateway(mb.buildDefaultGatewayWan())
 lan.routing_table.set_default_gateway(lan.ip_address)
 
-if True:
-    nat.run2()
-else:
-    pack = rdpcap('/home/user/Desktop/nat/PinguWall/fw/patch/test.pcapng')[0]
-    wan.route(pack)
+nat = net.NAT(lan, wan, ipPoolOne, ipPoolTwo)
+
+
+print('starting')
+nat.run3()
